@@ -47,8 +47,8 @@ CREATE TABLE asset (
     url_session_task_id INTEGER DEFAULT -1, 
     PRIMARY KEY (pid)
 );
-INSERT INTO asset VALUES(1,1,0,'media','https://google.com',NULL,'/private/var/mobile/Media/iTunes_Control/iTunes/iTunesMetadata.plist','plist',0,'GET',0,0,0,0,0,0,0,0,0,NULL,0.0,NULL,0,0,0,0,0,NULL,NULL,0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
-INSERT INTO asset VALUES(2,1,0,'media','https://google.com',NULL,'/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite-wal','epub',0,'GET',0,0,0,0,0,0,0,0,0,NULL,0.0,NULL,0,0,0,0,0,NULL,NULL,0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
-INSERT INTO asset VALUES(3,1,0,'media','https://google.com',NULL,'/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite-shm','epub',0,'GET',0,0,0,0,0,0,0,0,0,NULL,0.0,NULL,0,0,0,0,0,NULL,NULL,0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
-INSERT INTO asset VALUES(4,1,0,'media','https://google.com',NULL,'/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite','epub',0,'GET',0,0,0,0,0,0,0,0,0,NULL,0.0,NULL,0,0,0,0,0,NULL,NULL,0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
+INSERT INTO asset VALUES(1,1,0,'media',0,'https://google.com',NULL,'/private/var/mobile/Media/iTunes_Control/iTunes/iTunesMetadata.plist','plist',0,'GET',0,0,0,0,0,0,0,0,0,NULL,0.0,NULL,0,0,0,0,0,NULL,NULL,0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
+INSERT INTO asset VALUES(2,1,0,'media',0,'https://google.com',NULL,'/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite-wal','epub',0,'GET',0,0,0,0,0,0,0,0,0,NULL,0.0,NULL,0,0,0,0,0,NULL,NULL,0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
+INSERT INTO asset VALUES(3,1,0,'media',0,'https://google.com',NULL,'/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite-shm','epub',0,'GET',0,0,0,0,0,0,0,0,0,NULL,0.0,NULL,0,0,0,0,0,NULL,NULL,0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
+INSERT INTO asset VALUES(4,1,0,'media',0,'https://google.com',NULL,'/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite','epub',0,'GET',0,0,0,0,0,0,0,0,0,NULL,0.0,NULL,0,0,0,0,0,NULL,NULL,0,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
 COMMIT;

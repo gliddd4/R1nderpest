@@ -1,0 +1,8 @@
+other/
+final.logarchive/
+__pycache__/
+*.pyc
+.DS_Store
+server/public/cache/
+*.zip
+*.log
