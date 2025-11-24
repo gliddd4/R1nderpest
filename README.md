@@ -1,3 +1,4 @@
+Fails to activate, will finish s0n.
 # iOS Activation Tool Suite
 
 A complete, end-to-end solution for iOS device activation management. This repository contains both the client-side automation logic and the server-side infrastructure required to handle device activation payloads.
