@@ -1,5 +1,5 @@
-other/
 final.logarchive/
+*.logarchive/
 __pycache__/
 *.pyc
 .DS_Store
