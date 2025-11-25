@@ -74,23 +74,44 @@ class BypassAutomation:
         code, _, _ = self._run_cmd(["ideviceinfo", "-q", "com.apple.mobile.battery"])
         return code == 0
 
-    def wait_for_reconnect(self, timeout):
-        """Waits for the device to reconnect after a reboot."""
-        self.log(f"Waiting for device to reconnect (up to {timeout}s)...", "step")
+    def wait_for_device_disconnect(self, timeout=30, poll_interval=1):
+        """
+        Poll until the device disappears (disconnects).
+        Returns True if device disconnected, False if timeout reached.
+        """
+        self.log("Waiting for device to disconnect...", "detail")
         start_time = time.time()
+        while time.time() - start_time < timeout:
+            if not self.is_device_connected():
+                self.log("Device disconnected.", "detail")
+                return True
+            time.sleep(poll_interval)
+        return False
+
+    def wait_for_reconnect(self, timeout):
+        """Waits for the device to reconnect after a reboot using polling."""
+        self.log(f"Waiting for device to reconnect (up to {timeout}s)...", "step")
         
-        # Give the device a moment to fully disconnect before we start polling.
+        # Wait for device to disconnect first using polling (not hard sleep)
         self.log("Waiting for device to disconnect first...", "detail")
-        time.sleep(5)
+        self.wait_for_device_disconnect(timeout=30, poll_interval=1)
         
         self.log("Now actively polling for reconnection...", "detail")
+        start_time = time.time()
         while time.time() - start_time < timeout:
             if self.is_device_connected():
-                self.log("Device reconnected! Waiting 5s for services to stabilize...", "info")
-                # Add a small buffer for all services to settle before proceeding.
-                time.sleep(5)
-                return True
-            time.sleep(5)
+                self.log("Device reconnected!", "info")
+                # Verify services are ready by checking again after brief poll
+                self.log("Verifying services are stable...", "detail")
+                stable_checks = 0
+                for _ in range(3):
+                    time.sleep(2)
+                    if self.is_device_connected():
+                        stable_checks += 1
+                if stable_checks >= 2:
+                    self.log("Device services stable.", "success")
+                    return True
+            time.sleep(2)
             
         self.log("Device did not reconnect in time.", "error")
         return False
@@ -315,7 +336,13 @@ class BypassAutomation:
             if not self.wait_for_reconnect(self.timeouts['reconnect_wait']):
                 self.log(f"Attempt {attempt + 1} failed: Device did not reconnect.", "warn")
                 if attempt < max_attempts - 1:
-                    time.sleep(10)
+                    # Poll for device readiness instead of hard 10s wait
+                    self.log("Verifying device state before retry...", "detail")
+                    start_wait = time.time()
+                    while time.time() - start_wait < 10:
+                        if self.is_device_connected():
+                            break
+                        time.sleep(2)
                 continue
 
             # Re-detect device to ensure info is fresh after reboot
@@ -329,7 +356,13 @@ class BypassAutomation:
             
             if attempt < max_attempts - 1:
                 self.log(f"Attempt {attempt+1} failed. Will wait and retry.", "warn")
-                time.sleep(20)
+                # Poll for device readiness instead of hard 20s wait
+                self.log("Waiting for device to stabilize before retry...", "detail")
+                start_wait = time.time()
+                while time.time() - start_wait < 20:
+                    if self.is_device_connected():
+                        break
+                    time.sleep(2)
 
         if not self.guid:
             self.log("PROCESS FAILED: Could not find GUID after multiple attempts.", "error")

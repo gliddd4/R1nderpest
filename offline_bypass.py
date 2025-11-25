@@ -369,6 +369,134 @@ class BypassAutomation:
             return 124, (e.stdout or "").strip(), (e.stderr or "").strip()
         except Exception as e: return 1, "", str(e)
 
+    def is_device_connected(self):
+        """Check if the device is currently connected and responsive."""
+        code, _, _ = self._run_cmd(["ideviceinfo", "-k", "UniqueDeviceID"], timeout=5)
+        return code == 0
+
+    def wait_for_device_disconnect(self, timeout=60, poll_interval=1):
+        """
+        Poll until the device disappears (disconnects).
+        Returns True if device disconnected, False if timeout reached.
+        """
+        self.log("Waiting for device to disconnect...", "detail")
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if not self.is_device_connected():
+                self.log("Device disconnected.", "detail")
+                return True
+            time.sleep(poll_interval)
+        self.log("Timeout waiting for device to disconnect.", "warn")
+        return False
+
+    def wait_for_device_reconnect(self, timeout=120, poll_interval=2):
+        """
+        Poll until the device reappears (reconnects).
+        Returns True if device reconnected, False if timeout reached.
+        """
+        self.log("Waiting for device to reconnect...", "detail")
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if self.is_device_connected():
+                self.log("Device reconnected.", "success")
+                return True
+            time.sleep(poll_interval)
+        self.log("Timeout waiting for device to reconnect.", "error")
+        return False
+
+    def wait_for_device_services_ready(self, timeout=60, poll_interval=2):
+        """
+        Poll until device services are fully ready by checking battery info.
+        This is more thorough than just checking connection.
+        """
+        self.log("Waiting for device services to be ready...", "detail")
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            code, _, _ = self._run_cmd(["ideviceinfo", "-q", "com.apple.mobile.battery"], timeout=5)
+            if code == 0:
+                self.log("Device services ready.", "success")
+                return True
+            time.sleep(poll_interval)
+        self.log("Device services not fully ready, continuing anyway...", "warn")
+        return False
+
+    def wait_for_file_on_device(self, path, timeout=300, poll_interval=5):
+        """
+        Poll until a specific file appears on the device via AFC.
+        Returns True if file found, False if timeout reached.
+        """
+        self.log(f"Waiting for file: {path}...", "detail")
+        start_time = time.time()
+        
+        # Extract directory and filename
+        directory = "/".join(path.split("/")[:-1]) or "/"
+        filename = path.split("/")[-1]
+        
+        while time.time() - start_time < timeout:
+            if self.afc_mode == "ifuse":
+                file_path = os.path.join(self.mount_point, path.lstrip("/"))
+                if os.path.exists(file_path):
+                    self.log(f"File found: {path}", "success")
+                    return True
+            else:
+                code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", directory])
+                if code == 0 and filename in out:
+                    self.log(f"File found: {path}", "success")
+                    return True
+            time.sleep(poll_interval)
+        
+        self.log(f"Timeout waiting for file: {path}", "warn")
+        return False
+
+    def wait_for_file_removal(self, path, timeout=300, poll_interval=5):
+        """
+        Poll until a specific file disappears from the device via AFC.
+        Returns True if file removed, False if timeout reached.
+        """
+        self.log(f"Waiting for file removal: {path}...", "detail")
+        start_time = time.time()
+        
+        # Extract directory and filename
+        directory = "/".join(path.split("/")[:-1]) or "/"
+        filename = path.split("/")[-1]
+        
+        while time.time() - start_time < timeout:
+            if self.afc_mode == "ifuse":
+                file_path = os.path.join(self.mount_point, path.lstrip("/"))
+                if not os.path.exists(file_path):
+                    self.log(f"File removed: {path}", "success")
+                    return True
+            else:
+                code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", directory])
+                if code != 0 or filename not in out:
+                    self.log(f"File removed: {path}", "success")
+                    return True
+            time.sleep(poll_interval)
+        
+        self.log(f"Timeout waiting for file removal: {path}", "warn")
+        return False
+
+    def reboot_device_and_wait(self, timeout=120):
+        """
+        Reboot the device and wait for it to reconnect using polling.
+        First waits for disconnect, then waits for reconnect.
+        """
+        self.log("Initiating device reboot...", "info")
+        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
+        
+        # Wait for device to disconnect (indicates reboot started)
+        if not self.wait_for_device_disconnect(timeout=30, poll_interval=1):
+            # Device might have already disconnected quickly, or reboot is slow
+            self.log("Device may have disconnected quickly, proceeding to reconnect wait...", "warn")
+        
+        # Wait for device to reconnect
+        if not self.wait_for_device_reconnect(timeout=timeout, poll_interval=2):
+            return False
+        
+        # Wait for services to be fully ready
+        self.wait_for_device_services_ready(timeout=30, poll_interval=2)
+        return True
+
     def verify_dependencies(self):
         self.log("Verifying System Requirements...", "step")
         # Check for assets/Maker
@@ -682,33 +810,24 @@ class BypassAutomation:
         # 5. Execution Sequence
         print(f"Server IP: {self.server.local_ip}")
         
-        # Wait 30 seconds before first reboot (as per A12Bypass.py recommendation)
-        self.log("Waiting 30 seconds before first reboot to ensure filesystem sync...", "info")
-        time.sleep(30)
+        # Wait for filesystem sync by polling device readiness instead of hard 30s sleep
+        self.log("Verifying filesystem sync before reboot...", "info")
+        self.wait_for_device_services_ready(timeout=30, poll_interval=2)
 
         self.log("Rebooting (Stage 1/2)...", "step")
-        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
-        
-        time.sleep(10)
-        
-        # Wait for device to be detected again
-        self.log("Waiting for reconnection...", "detail")
-        start_wait = time.time()
-        while time.time() - start_wait < 120:
-            if self._run_cmd(["ideviceinfo"])[0] == 0: break
-            time.sleep(2)
-        self.log("Device reconnected.", "success")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after Stage 1/2 reboot", "error")
+            sys.exit(1)
 
-        # --- ADDED: 60s Wait (Strawhat Logic) ---
-        self.log("Waiting 60 seconds for system stabilization (Strawhat Logic)...", "info")
-        time.sleep(60)
+        # Wait for system stabilization by polling services ready
+        self.log("Waiting for system stabilization...", "info")
+        self.wait_for_device_services_ready(timeout=60, poll_interval=2)
 
         # --- Prompt user to open Books app manually ---
         print(f"\n{Style.BOLD}{Style.YELLOW}*** MANUAL ACTION REQUIRED ***{Style.RESET}")
         print(f"{Style.YELLOW}Please open the Books app on your device NOW!{Style.RESET}")
         print(f"{Style.YELLOW}Then press Enter to continue...{Style.RESET}")
         input()
-        time.sleep(5)
 
         # --- ADDED: Plist Transfer (Strawhat Logic) ---
         self.transfer_plist_to_books()
@@ -733,35 +852,20 @@ class BypassAutomation:
         metadata_path = "/iTunes_Control/iTunes/iTunesMetadata.plist"
         found_metadata = False
         
-        # Wait up to 20s
-        for i in range(20):
-            code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/iTunes_Control/iTunes"])
-            if "iTunesMetadata.plist" in out:
-                self.log("iTunesMetadata.plist found.", "success")
-                found_metadata = True
-                break
-            time.sleep(1)
+        # Wait up to 20s using polling
+        found_metadata = self.wait_for_file_on_device("/iTunes_Control/iTunes/iTunesMetadata.plist", timeout=20, poll_interval=1)
             
         if not found_metadata:
             self.log("iTunesMetadata.plist not found (continuing anyway...)", "warn")
 
         # Reboot 2
         self.log("Rebooting (Stage 2/3)...", "step")
-        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
-        
-        time.sleep(10) # Short wait before polling
-        
-        # Wait for reconnection
-        self.log("Waiting for reconnection...", "detail")
-        start_wait = time.time()
-        while time.time() - start_wait < 120:
-            code, _, _ = self._run_cmd(["ideviceinfo", "-k", "UniqueDeviceID"])
-            if code == 0: break
-            time.sleep(2)
-        self.log("Device reconnected.", "success")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after Stage 2/3 reboot", "error")
+            sys.exit(1)
 
-        # --- ADDED: Wait for bookassetd to process BLDatabaseManager ---
-        self.log("Waiting 60 seconds for bookassetd to process BLDatabaseManager...", "info")
+        # Wait for bookassetd to process BLDatabaseManager using polling
+        self.log("Waiting for bookassetd to process BLDatabaseManager...", "info")
         
         # Launch iBooks to trigger bookassetd to read BLDatabaseManager
         self.log("Launching iBooks to trigger bookassetd...", "info")
@@ -773,18 +877,19 @@ class BypassAutomation:
             except:
                 self.log("Could not launch iBooks automatically", "warn")
         
-        for sec in range(60):
-            time.sleep(1)
-            # Check server log periodically for epub request
-            if sec % 10 == 0:
-                try:
-                    with open("php_server.log", "r") as f:
-                        content = f.read()
-                        if "payload_" in content and ".epub" in content:
-                            self.log("Server received epub request!", "success")
-                            break
-                except:
-                    pass
+        # Poll for epub request in server log instead of hard 60s wait
+        start_time = time.time()
+        max_wait = 60
+        while time.time() - start_time < max_wait:
+            try:
+                with open("php_server.log", "r") as f:
+                    content = f.read()
+                    if "payload_" in content and ".epub" in content:
+                        self.log("Server received epub request!", "success")
+                        break
+            except:
+                pass
+            time.sleep(2)
 
         # Monitor asset.epub (Exploit Trigger)
         self.log("Waiting for asset.epub (Exploit Trigger)...", "step")
@@ -859,18 +964,9 @@ class BypassAutomation:
 
         # Reboot 3 (Final)
         self.log("Rebooting (Stage 3/3 - Final)...", "step")
-        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
-        
-        time.sleep(10)
-        
-        # Wait for reconnection
-        self.log("Waiting for reconnection...", "detail")
-        start_wait = time.time()
-        while time.time() - start_wait < 120:
-            code, _, _ = self._run_cmd(["ideviceinfo", "-k", "UniqueDeviceID"])
-            if code == 0: break
-            time.sleep(2)
-        self.log("Device reconnected.", "success")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after final reboot", "error")
+            sys.exit(1)
 
         # Check Activation State with Retry
         self.log("Checking Activation State (Smart Retry)...", "step")
@@ -879,7 +975,7 @@ class BypassAutomation:
         for attempt in range(max_retries):
             self.log(f"Activation Check Attempt {attempt+1}/{max_retries}", "info")
             
-            # Check loop (try for 60s)
+            # Check loop using polling (up to 60s with 5s intervals = 12 attempts)
             for i in range(12):
                 code, out, _ = self._run_cmd(["ideviceinfo", "-k", "ActivationState"])
                 state = out.strip()
@@ -893,17 +989,12 @@ class BypassAutomation:
             
             if attempt < max_retries - 1:
                 self.log("Device not activated yet. Rebooting and retrying...", "warn")
-                self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
+                if not self.reboot_device_and_wait(timeout=120):
+                    self.log("Failed to reconnect after retry reboot", "warn")
+                    continue
                 
-                # Wait for reconnect
-                time.sleep(10)
-                start_wait = time.time()
-                while time.time() - start_wait < 120:
-                    if self._run_cmd(["ideviceinfo", "-k", "UniqueDeviceID"])[0] == 0: break
-                    time.sleep(2)
-                
-                self.log("Device reconnected. Waiting 45s...", "info")
-                time.sleep(45)
+                # Wait for services to stabilize using polling
+                self.wait_for_device_services_ready(timeout=45, poll_interval=2)
 
         self.log("Activation failed after all retries.", "error")
         
