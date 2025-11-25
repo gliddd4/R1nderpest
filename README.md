@@ -13,14 +13,14 @@ Work in progress offline A12+ activator.
 .
 ├── LICENSE
 ├── README.md
-├── client/                # Python client application
+├── client/                # Python client application (requires server)
 │   ├── activator.py       # Main automation entry point
 │   └── README.md          # Client-specific documentation
 ├── client.cs              # C# client source
 ├── client_windows.cs      # Windows C# client source
 ├── ios.exe                # Windows executable
-├── offline_bypass.py      # Offline bypass script
-└── server/                # PHP backend infrastructure
+├── offline_bypass.py      # Fully offline tool with embedded server & payload generation
+└── server/                # PHP backend infrastructure (for client/activator.py)
     ├── SETUP.md           # Server deployment guide
     ├── assets/            # Device configuration storage
     ├── cron/              # Cron job scripts
