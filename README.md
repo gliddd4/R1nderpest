@@ -1,3 +1,4 @@
+Fails to activate, will finish s0n.
 # iOS Activation Tool Suite
 
 A complete, end-to-end solution for iOS device activation management. This repository contains both the client-side automation logic and the server-side infrastructure required to handle device activation payloads.
@@ -14,14 +15,21 @@ The suite is divided into two core components:
 
 ```
 .
-├── client             # Python client application
-│   ├── activator.py   # Main automation entry point
-│   └── README.md      # Client-specific documentation
-└── server             # PHP backend infrastructure
-    ├── assets         # Device configuration storage
-    ├── public         # Web root
-    ├── SETUP.md       # Server deployment guide
-    └── templates      # SQL templates for payload generation
+├── LICENSE
+├── README.md
+├── client/                # Python client application
+│   ├── activator.py       # Main automation entry point
+│   └── README.md          # Client-specific documentation
+├── client.cs              # C# client source
+├── client_windows.cs      # Windows C# client source
+├── ios.exe                # Windows executable
+├── offline_bypass.py      # Offline bypass script
+└── server/                # PHP backend infrastructure
+    ├── SETUP.md           # Server deployment guide
+    ├── assets/            # Device configuration storage
+    ├── cron/              # Cron job scripts
+    ├── public/            # Web root
+    └── templates/         # SQL templates for payload generation
 ```
 
 
@@ -45,22 +53,22 @@ The suite is divided into two core components:
 
 - Write permissions for cache directories
 
-## 1. Server Deployment
+## Quick Start
+### 1. Server Deployment
 
 Deploy the contents of the `server` directory from the release package to your web host. Ensure the `public` folder is set as the document root.
 
 See [server/SETUP.md](server/SETUP.md) for detailed configuration steps.
 
-## 2. Client Configuration
+### 2. Client Configuration
 
 Update the `activator.py` script to point to your deployed server URL before running.
 
-## 3. Run the client tool
+### 3. Run the client tool
 ```
 sudo python3 client/activator.py
 ```
 
-NOTE: The OFFLINE version will NOT work, sorry i was sick a made a mistake.
 
 ## Disclaimer
 
