@@ -1,8 +1,8 @@
-other/
-final.logarchive/
+Inspiration/
 __pycache__/
 *.pyc
 .DS_Store
 server/public/cache/
 *.zip
 *.log
+*.logarchive/

