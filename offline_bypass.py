@@ -627,10 +627,8 @@ class BypassAutomation:
         print(f"{Style.YELLOW}Starting in 5 seconds...{Style.RESET}")
         time.sleep(5)
         
-        # --- TESTING MODE: Skip slow GUID extraction (using known GUID) ---
-        self.log("Using hardcoded GUID (Testing Mode)", "warn")
-        self.guid = "07FD78D0-1976-4F75-8A89-2B4E8953DF19"
-        self.log(f"GUID: {self.guid}", "info")
+        # --- Extract GUID from device ---
+        self.guid = self.get_guid()
 
         if not self.guid:
             self.log("Could not find GUID in logs.", "error")
@@ -685,9 +683,8 @@ class BypassAutomation:
         print(f"Server IP: {self.server.local_ip}")
         
         # Wait 30 seconds before first reboot (as per A12Bypass.py recommendation)
-        # self.log("Waiting 30 seconds before first reboot to ensure filesystem sync...", "info")
-        # time.sleep(30)
-        self.log("Skipping 30s wait (Testing Mode)", "warn")
+        self.log("Waiting 30 seconds before first reboot to ensure filesystem sync...", "info")
+        time.sleep(30)
 
         self.log("Rebooting (Stage 1/2)...", "step")
         self._run_cmd(["pymobiledevice3", "diagnostics", "restart"])
