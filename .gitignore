@@ -6,3 +6,13 @@ server/public/cache/
 *.zip
 *.log
 *.logarchive/
+
+# Local configuration
+.env
+
+# Generated databases
+*.sqlite
+*.sqlitedb
+
+# Generated assets
+assets/

