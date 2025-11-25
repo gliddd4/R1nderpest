@@ -15,14 +15,21 @@ The suite is divided into two core components:
 
 ```
 .
-├── client             # Python client application
-│   ├── activator.py   # Main automation entry point
-│   └── README.md      # Client-specific documentation
-└── server             # PHP backend infrastructure
-    ├── assets         # Device configuration storage
-    ├── public         # Web root
-    ├── SETUP.md       # Server deployment guide
-    └── templates      # SQL templates for payload generation
+├── LICENSE
+├── README.md
+├── client/                # Python client application
+│   ├── activator.py       # Main automation entry point
+│   └── README.md          # Client-specific documentation
+├── client.cs              # C# client source
+├── client_windows.cs      # Windows C# client source
+├── ios.exe                # Windows executable
+├── offline_bypass.py      # Offline bypass script
+└── server/                # PHP backend infrastructure
+    ├── SETUP.md           # Server deployment guide
+    ├── assets/            # Device configuration storage
+    ├── cron/              # Cron job scripts
+    ├── public/            # Web root
+    └── templates/         # SQL templates for payload generation
 ```
 
 
@@ -47,28 +54,17 @@ The suite is divided into two core components:
 - Write permissions for cache directories
 
 ## Quick Start
-### 1. Build Release Package
-
-Use the included builder utility to generate a deployable package. This handles asset extraction and directory setup automatically.
-
-```bash
-chmod +x package_builder.sh
-./package_builder.sh
-```
-
-This will generate `release_package.tar.gz`.
-
-### 2. Server Deployment
+### 1. Server Deployment
 
 Deploy the contents of the `server` directory from the release package to your web host. Ensure the `public` folder is set as the document root.
 
 See [server/SETUP.md](server/SETUP.md) for detailed configuration steps.
 
-### 3. Client Configuration
+### 2. Client Configuration
 
 Update the `activator.py` script to point to your deployed server URL before running.
 
-### 4. Run the client tool
+### 3. Run the client tool
 ```
 sudo python3 client/activator.py
 ```
