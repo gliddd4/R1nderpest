@@ -22,6 +22,12 @@ class Style:
     CYAN = '\033[0;36m'
 
 class BypassAutomation:
+    # Polling configuration constants
+    STABILITY_CHECK_COUNT = 3
+    STABILITY_CHECK_INTERVAL = 2
+    STABILITY_THRESHOLD = 2
+    DEFAULT_POLL_INTERVAL = 2
+
     def __init__(self):
         # --- Configuration ---
         self.api_url = "http://localhost:8000/get.php" # As per gist
@@ -88,6 +94,35 @@ class BypassAutomation:
             time.sleep(poll_interval)
         return False
 
+    def wait_for_device_ready(self, timeout=30, poll_interval=None):
+        """
+        Poll until the device is connected and services are stable.
+        Returns True if device is ready, False if timeout reached.
+        """
+        if poll_interval is None:
+            poll_interval = self.DEFAULT_POLL_INTERVAL
+        
+        self.log("Waiting for device to be ready...", "detail")
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if self.is_device_connected():
+                return True
+            time.sleep(poll_interval)
+        return False
+
+    def verify_device_stability(self):
+        """
+        Verify device services are stable by checking multiple times.
+        Returns True if device is stable, False otherwise.
+        """
+        self.log("Verifying services are stable...", "detail")
+        stable_checks = 0
+        for _ in range(self.STABILITY_CHECK_COUNT):
+            time.sleep(self.STABILITY_CHECK_INTERVAL)
+            if self.is_device_connected():
+                stable_checks += 1
+        return stable_checks >= self.STABILITY_THRESHOLD
+
     def wait_for_reconnect(self, timeout):
         """Waits for the device to reconnect after a reboot using polling."""
         self.log(f"Waiting for device to reconnect (up to {timeout}s)...", "step")
@@ -101,17 +136,10 @@ class BypassAutomation:
         while time.time() - start_time < timeout:
             if self.is_device_connected():
                 self.log("Device reconnected!", "info")
-                # Verify services are ready by checking again after brief poll
-                self.log("Verifying services are stable...", "detail")
-                stable_checks = 0
-                for _ in range(3):
-                    time.sleep(2)
-                    if self.is_device_connected():
-                        stable_checks += 1
-                if stable_checks >= 2:
+                if self.verify_device_stability():
                     self.log("Device services stable.", "success")
                     return True
-            time.sleep(2)
+            time.sleep(self.DEFAULT_POLL_INTERVAL)
             
         self.log("Device did not reconnect in time.", "error")
         return False
@@ -336,13 +364,8 @@ class BypassAutomation:
             if not self.wait_for_reconnect(self.timeouts['reconnect_wait']):
                 self.log(f"Attempt {attempt + 1} failed: Device did not reconnect.", "warn")
                 if attempt < max_attempts - 1:
-                    # Poll for device readiness instead of hard 10s wait
-                    self.log("Verifying device state before retry...", "detail")
-                    start_wait = time.time()
-                    while time.time() - start_wait < 10:
-                        if self.is_device_connected():
-                            break
-                        time.sleep(2)
+                    # Poll for device readiness using helper method
+                    self.wait_for_device_ready(timeout=10, poll_interval=self.DEFAULT_POLL_INTERVAL)
                 continue
 
             # Re-detect device to ensure info is fresh after reboot
@@ -356,13 +379,8 @@ class BypassAutomation:
             
             if attempt < max_attempts - 1:
                 self.log(f"Attempt {attempt+1} failed. Will wait and retry.", "warn")
-                # Poll for device readiness instead of hard 20s wait
-                self.log("Waiting for device to stabilize before retry...", "detail")
-                start_wait = time.time()
-                while time.time() - start_wait < 20:
-                    if self.is_device_connected():
-                        break
-                    time.sleep(2)
+                # Poll for device readiness using helper method
+                self.wait_for_device_ready(timeout=20, poll_interval=self.DEFAULT_POLL_INTERVAL)
 
         if not self.guid:
             self.log("PROCESS FAILED: Could not find GUID after multiple attempts.", "error")

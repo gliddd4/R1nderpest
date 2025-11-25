@@ -420,6 +420,15 @@ class BypassAutomation:
         self.log("Device services not fully ready, continuing anyway...", "warn")
         return False
 
+    def _parse_device_path(self, path):
+        """
+        Parse a device path into directory and filename components.
+        Returns tuple (directory, filename).
+        """
+        directory = "/".join(path.split("/")[:-1]) or "/"
+        filename = path.split("/")[-1]
+        return directory, filename
+
     def wait_for_file_on_device(self, path, timeout=300, poll_interval=5):
         """
         Poll until a specific file appears on the device via AFC.
@@ -428,9 +437,7 @@ class BypassAutomation:
         self.log(f"Waiting for file: {path}...", "detail")
         start_time = time.time()
         
-        # Extract directory and filename
-        directory = "/".join(path.split("/")[:-1]) or "/"
-        filename = path.split("/")[-1]
+        directory, filename = self._parse_device_path(path)
         
         while time.time() - start_time < timeout:
             if self.afc_mode == "ifuse":
@@ -456,9 +463,7 @@ class BypassAutomation:
         self.log(f"Waiting for file removal: {path}...", "detail")
         start_time = time.time()
         
-        # Extract directory and filename
-        directory = "/".join(path.split("/")[:-1]) or "/"
-        filename = path.split("/")[-1]
+        directory, filename = self._parse_device_path(path)
         
         while time.time() - start_time < timeout:
             if self.afc_mode == "ifuse":
@@ -486,8 +491,7 @@ class BypassAutomation:
         
         # Wait for device to disconnect (indicates reboot started)
         if not self.wait_for_device_disconnect(timeout=30, poll_interval=1):
-            # Device might have already disconnected quickly, or reboot is slow
-            self.log("Device may have disconnected quickly, proceeding to reconnect wait...", "warn")
+            self.log("Reboot command may have failed or device is unresponsive, proceeding to reconnect wait...", "warn")
         
         # Wait for device to reconnect
         if not self.wait_for_device_reconnect(timeout=timeout, poll_interval=2):
