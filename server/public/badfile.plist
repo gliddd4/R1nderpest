@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+   
+    <key>appleId</key>
+    <string></string> 
+
+    <key>artistName</key>
+    <string>Sebastian Saenz</string>
+
+    <key>bookGenre</key>
+    <string>Contemporary Romance</string>
+
+    <key>bookId</key>
+    <integer>765107106</integer> 
+
+    <key>bookVersion</key>
+    <integer>1</integer>
+
+    <key>contentType</key>
+    <string>ebook</string>
+
+    <key>drmVersionNumber</key>
+    <integer>0</integer>
+
+    <key>isCompilation</key>
+    <false/>
+
+    <key>itemName</key>
+    <string>Cartas de Amor a la Luna</string>
+
+    <key>kind</key>
+    <string>book</string>
+
+    <key>playlistId</key>
+    <integer>0</integer>
+
+    <key>playlistName</key>
+    <string></string>
+
+    <key>purchaseDate</key>
+    <date>2025-05-03T15:15:53Z</date> 
+
+    <key>rating</key>
+    <dict>
+        <key>explicit</key>
+        <string>cleaned</string>
+    </dict>
+
+    <key>releaseDate</key>
+    <date>2025-05-01T00:00:00Z</date> 
+
+    <key>shortDescription</key>
+    <string></string>
+
+    <key>softwareIcon57x57URL</key>
+    <string>https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/3d/b6/0a/3db60a65-b1a5-51c3-b306-c58870663fd3/Portada.jpg/57x57bb.jpg</string>
+
+    <key>softwareIconNeedsShine</key>
+    <false/>
+
+    <key>softwareVersionExternalIdentifier</key>
+    <integer>0</integer>
+
+    <key>userRating</key>
+    <dict>
+        <key>rating</key>
+        <real>0.0</real>
+    </dict>
+
+
+    <key>download-id</key>
+    <string>J19N_PUB_190099164604738</string> 
+
+    <key>external-version-id</key>
+    <string>190099164604738</string>
+
+    <key>external-id</key>
+    <string>765107106</string>
+
+    <key>asset-url</key>
+    <string>../../../../../../private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library</string>
+
+  
+</dict>
+</plist>

@@ -1,0 +1,99 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE application_id (effective_client_id INTEGER, bundle_id TEXT NOT NULL, UNIQUE (bundle_id));
+INSERT INTO application_id VALUES(1,'com.apple.AppStore');
+INSERT INTO application_id VALUES(3,'com.apple.iBooks');
+INSERT INTO application_id VALUES(2,'com.apple.MobileStore');
+INSERT INTO application_id VALUES(4,'com.apple.Music');
+INSERT INTO application_id VALUES(2,'com.apple.videos');
+CREATE TABLE asset (
+        pid INTEGER, 
+        download_id INTEGER, 
+        asset_order INTEGER DEFAULT 0, 
+        asset_type TEXT, 
+        bytes_total INTEGER, 
+        url TEXT, 
+        local_path TEXT, 
+        destination_url TEXT, 
+        path_extension TEXT, 
+        retry_count INTEGER, 
+        http_method TEXT, 
+        initial_odr_size INTEGER, 
+        is_discretionary INTEGER DEFAULT 0, 
+        is_downloaded INTEGER DEFAULT 0, 
+        is_drm_free INTEGER DEFAULT 0, 
+        is_external INTEGER DEFAULT 0, 
+        is_hls INTEGER DEFAULT 0, 
+        is_local_cache_server INTEGER DEFAULT 0, 
+        is_zip_streamable INTEGER DEFAULT 0, 
+        processing_types INTEGER DEFAULT 0, 
+        video_dimensions TEXT, 
+        timeout_interval REAL, 
+        store_flavor TEXT, 
+        download_token INTEGER DEFAULT 0, 
+        blocked_reason INTEGER DEFAULT 0, 
+        avfoundation_blocked INTEGER DEFAULT 0, 
+        service_type INTEGER DEFAULT 0, 
+        protection_type INTEGER DEFAULT 0,
+        store_download_key TEXT, 
+        etag TEXT, 
+        bytes_to_hash INTEGER, 
+        hash_type INTEGER DEFAULT 0, 
+        server_guid TEXT, 
+        file_protection TEXT, 
+        variant_id TEXT, 
+        hash_array BLOB, 
+        http_headers BLOB, 
+        request_parameters BLOB, 
+        body_data BLOB, 
+        body_data_file_path TEXT,
+        sinfs_data BLOB, 
+        dpinfo_data BLOB, 
+        uncompressed_size INTEGER DEFAULT 0, 
+        url_session_task_id INTEGER DEFAULT -1, 
+        PRIMARY KEY (pid)
+    );
+INSERT INTO asset VALUES(1234567890,6936249076851270150,0,'media',NULL,'https://google.com','/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite',NULL,'epub',6,'GET',NULL,0,0,0,1,0,0,0,0,NULL,60.0,NULL,466440000,0,0,0,0,'',NULL,NULL,0,NULL,NULL,NULL,unistr('bplist00¡\u0001_\u0010 6a8381da01ddbc939e73d110062bfc5f\u0008\u000a'),NULL,NULL,NULL,NULL,NULL,NULL,0,1);
+INSERT INTO asset VALUES(1234567891,6936249076851270151,0,'media',NULL,'http://192.168.0.103:8000/badfile.plist','/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite-shm',NULL,'epub',6,'GET',NULL,0,0,0,1,0,0,0,0,NULL,60.0,NULL,466440000,0,0,0,0,'',NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
+INSERT INTO asset VALUES(1234567892,6936249076851270152,0,'media',NULL,'http://192.168.0.103:8000/badfile.plist','/private/var/containers/Shared/SystemGroup/GOODKEY/Documents/BLDatabaseManager/BLDatabaseManager.sqlite-wal',NULL,'epub',6,'GET',NULL,0,0,0,1,0,0,0,0,NULL,60.0,NULL,466440000,0,0,0,0,'',NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
+INSERT INTO asset VALUES(1234567893,6936249076851270153,0,'media',NULL,'http://192.168.0.103:8000/badfile.plist','/private/var/mobile/Media/iTunes_Control/iTunes/iTunesMetadata.plist',NULL,'epub',6,'GET',NULL,0,0,0,1,0,0,0,0,NULL,60.0,NULL,466440000,0,0,0,0,'',NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,-1);
+CREATE TABLE download (pid INTEGER, airplay_content_type TEXT, artist_name TEXT, artwork_is_prerendered INTEGER DEFAULT 0, artwork_template_name TEXT, auto_update_time INTEGER, beta_external_version_identifier INTEGER DEFAULT 0, bundle_id TEXT, bundle_version TEXT, cancel_if_duplicate INTEGER DEFAULT 0, cancel_on_failure INTEGER DEFAULT 0, cancel_url TEXT, client_id TEXT, collection_artist_name TEXT, collection_group_count INTEGER, collection_item_count INTEGER, collection_name TEXT, composer_name TEXT, diverted_job_id INTEGER, document_target_id TEXT, download_permalink TEXT, duet_transfer_type INTEGER DEFAULT 0, duration_in_ms INTEGER DEFAULT 0, effective_client_id INTEGER DEFAULT 0, enable_extensions INTEGER DEFAULT 0, episode_id TEXT, episode_sort_id INTEGER, handler_id INTEGER DEFAULT 0, has_4k INTEGER DEFAULT 0, has_dolby_vision INTEGER DEFAULT 0, has_hdr INTEGER DEFAULT 0, has_messages_extension INTEGER DEFAULT 0, hls_playlist_url TEXT, genre_name TEXT, index_in_collection INTEGER DEFAULT 0, index_in_collection_group INTEGER, is_automatic INTEGER DEFAULT 0, is_compilation INTEGER DEFAULT 0, is_device_based_vpp INTEGER DEFAULT 0, is_diverted INTEGER DEFAULT 0, is_explicit INTEGER DEFAULT 0, is_from_store INTEGER DEFAULT 0, is_hd INTEGER DEFAULT 0, is_hls INTEGER DEFAULT 0, is_premium INTEGER DEFAULT 0, is_private INTEGER DEFAULT 0, is_purchase INTEGER DEFAULT 0, is_redownload INTEGER DEFAULT 0, is_restore INTEGER DEFAULT 0, is_rental INTEGER DEFAULT 0, is_sample INTEGER DEFAULT 0, is_shared INTEGER DEFAULT 0, is_store_queued INTEGER DEFAULT 0, is_tv_template INTEGER DEFAULT 0, is_music_show INTEGER DEFAULT 0, kind TEXT, launch_prohibited INTEGER DEFAULT 0, library_id TEXT, loading_priority REAL, long_description TEXT, long_season_description TEXT, messages_artwork_url TEXT, network_name TEXT, order_key DOUBLE DEFAULT 0, order_seed INTEGER DEFAULT 0, override_audit_token_data BLOB, page_progression_direction TEXT, podcast_episode_guid TEXT, podcast_feed_url TEXT, podcast_type TEXT, policy_id INTEGER DEFAULT 0, priority INTEGER DEFAULT 0, preferred_asset_flavor TEXT, purchase_id INTEGER DEFAULT 0, rate_limit INTEGER, reason INTEGER DEFAULT 0,ref_app TEXT, ref_url TEXT, release_date INTEGER, release_year INTEGER, rental_id INTEGER, resource_timeout_interval REAL, season_number INTEGER, series_name TEXT, software_type TEXT, short_description TEXT, show_composer INTEGER DEFAULT 0, suppress_error_dialogs INTEGER NOT NULL DEFAULT 0, store_account_id INTEGER, store_account_name TEXT, store_artist_id INTEGER, store_cohort TEXT, store_collection_id INTEGER, store_composer_id INTEGER, store_download_key TEXT, store_front_id TEXT, store_genre_id INTEGER, store_item_id INTEGER, store_match_status INTEGER NOT NULL DEFAULT 0, store_publication_version INTEGER DEFAULT 0, store_preorder_id INTEGER, store_purchase_date INTEGER, store_redownload_parameters TEXT, store_redownload_status INTEGER NOT NULL DEFAULT 0, store_saga_id INTEGER, store_software_version_id INTEGER, store_transaction_id TEXT, store_url TEXT, store_xid TEXT, thumbnail_newsstand_binding_edge TEXT, thumbnail_newsstand_binding_type TEXT, thumbnail_url TEXT, timeout_interval REAL, timestamp INTEGER DEFAULT (strftime('%s', 'now')), title TEXT, transaction_id INTEGER DEFAULT 0, variant_id TEXT, work_name TEXT, PRIMARY KEY (pid));
+INSERT INTO download VALUES(6936249076851270150,NULL,'Iminam',0,NULL,NULL,0,NULL,NULL,0,0,NULL,'com.apple.MobileStore','Iminam',1,1,'Enemy','Iminam',NULL,NULL,NULL,0,217966,2,0,NULL,1,0,0,0,0,0,'https://aod.itunes.apple.com/itunes-assets/HLSMusic221/v4/82/1a/b4/821ab4b9-8535-83b7-2453-f5263ba44112/P1164093890_lossless.m3u8','Urbano latino',1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,'ebook',0,NULL,NULL,NULL,NULL,NULL,NULL,100.0,30609,NULL,NULL,NULL,NULL,NULL,19851405945568456,0,NULL,-2647463297613737727,NULL,0,NULL,NULL,776260800,2025,NULL,NULL,NULL,'Enemy',NULL,NULL,0,0,17551287442,NULL,1370744631,NULL,1829719399,1644244721,'','143509',1119,1829719400,0,0,0,776366378,'productType=S&price=0&salableAdamId=1829719400&pricingParameters=HQRDL',0,NULL,NULL,'190099663292488',NULL,'SonyBMG:isrc:QT5SH2500001',NULL,NULL,'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/da/66/e2/da66e269-0ce9-9141-e64a-cff07051f0b3/196873463896.jpg/110x110bb.jpg',NULL,1754673547,'Enemy',-5887596844075887950,NULL,NULL);
+INSERT INTO download VALUES(6936249076851270151,NULL,'Iminam',0,NULL,NULL,0,NULL,NULL,0,0,NULL,'com.apple.MobileStore','Iminam',1,1,'Enemy','Iminam',NULL,NULL,NULL,0,217966,2,0,NULL,1,0,0,0,0,0,'https://aod.itunes.apple.com/itunes-assets/HLSMusic221/v4/82/1a/b4/821ab4b9-8535-83b7-2453-f5263ba44112/P1164093890_lossless.m3u8','Urbano latino',1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,'ebook',0,NULL,NULL,NULL,NULL,NULL,NULL,100.0,30609,NULL,NULL,NULL,NULL,NULL,19851405945568456,0,NULL,-2647463297613737727,NULL,0,NULL,NULL,776260800,2025,NULL,NULL,NULL,'Enemy',NULL,NULL,0,0,17551287442,NULL,1370744631,NULL,1829719399,1644244721,'','143509',1119,1829719400,0,0,0,776366378,'productType=S&price=0&salableAdamId=1829719400&pricingParameters=HQRDL',0,NULL,NULL,'190099663292488',NULL,'SonyBMG:isrc:QT5SH2500001',NULL,NULL,'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/da/66/e2/da66e269-0ce9-9141-e64a-cff07051f0b3/196873463896.jpg/110x110bb.jpg',NULL,1754673547,'Enemy',-5887596844075887950,NULL,NULL);
+INSERT INTO download VALUES(6936249076851270152,NULL,'Iminam',0,NULL,NULL,0,NULL,NULL,0,0,NULL,'com.apple.MobileStore','Iminam',1,1,'Enemy','Iminam',NULL,NULL,NULL,0,217966,2,0,NULL,1,0,0,0,0,0,'https://aod.itunes.apple.com/itunes-assets/HLSMusic221/v4/82/1a/b4/821ab4b9-8535-83b7-2453-f5263ba44112/P1164093890_lossless.m3u8','Urbano latino',1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,'ebook',0,NULL,NULL,NULL,NULL,NULL,NULL,100.0,30609,NULL,NULL,NULL,NULL,NULL,19851405945568456,0,NULL,-2647463297613737727,NULL,0,NULL,NULL,776260800,2025,NULL,NULL,NULL,'Enemy',NULL,NULL,0,0,17551287442,NULL,1370744631,NULL,1829719399,1644244721,'','143509',1119,1829719400,0,0,0,776366378,'productType=S&price=0&salableAdamId=1829719400&pricingParameters=HQRDL',0,NULL,NULL,'190099663292488',NULL,'SonyBMG:isrc:QT5SH2500001',NULL,NULL,'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/da/66/e2/da66e269-0ce9-9141-e64a-cff07051f0b3/196873463896.jpg/110x110bb.jpg',NULL,1754673547,'Enemy',-5887596844075887950,NULL,NULL);
+INSERT INTO download VALUES(6936249076851270153,NULL,'Iminam',0,NULL,NULL,0,NULL,NULL,0,0,NULL,'com.apple.MobileStore','Iminam',1,1,'Enemy','Iminam',NULL,NULL,NULL,0,217966,2,0,NULL,1,0,0,0,0,0,'https://aod.itunes.apple.com/itunes-assets/HLSMusic221/v4/82/1a/b4/821ab4b9-8535-83b7-2453-f5263ba44112/P1164093890_lossless.m3u8','Urbano latino',1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,'ebook',0,NULL,NULL,NULL,NULL,NULL,NULL,100.0,30609,NULL,NULL,NULL,NULL,NULL,19851405945568456,0,NULL,-2647463297613737727,NULL,0,NULL,NULL,776260800,2025,NULL,NULL,NULL,'Enemy',NULL,NULL,0,0,17551287442,NULL,1370744631,NULL,1829719399,1644244721,'','143509',1119,1829719400,0,0,0,776366378,'productType=S&price=0&salableAdamId=1829719400&pricingParameters=HQRDL',0,NULL,NULL,'190099663292488',NULL,'SonyBMG:isrc:QT5SH2500001',NULL,NULL,'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/da/66/e2/da66e269-0ce9-9141-e64a-cff07051f0b3/196873463896.jpg/110x110bb.jpg',NULL,1754673547,'Enemy',-5887596844075887950,NULL,NULL);
+CREATE TABLE download_policy (pid INTEGER, policy_data BLOB, PRIMARY KEY (pid));
+INSERT INTO download_policy VALUES(19851405945568456,X'62706c6973743030d4010203040506070a582476657273696f6e592461726368697665725424746f7058246f626a6563747312000186a05f100f4e534b657965644172636869766572d1080954726f6f748001a50b0c15161755246e756c6cd40d0e0f10111213145572756c65735762616774797065546b696e645624636c617373800080038002800454736f6e675470726f64d218191a1b5a24636c6173736e616d655824636c61737365735f10105353446f776e6c6f6164506f6c696379a21c1d5f10105353446f776e6c6f6164506f6c696379584e534f626a65637408111a24293237494c5153595f686e767b828486888a8f9499a4adc0c3d60000000000000101000000000000001e000000000000000000000000000000df');
+CREATE TABLE download_state (pid INTEGER, download_id INTEGER, phase TEXT, is_restricted INTEGER DEFAULT 0, restore_state INTEGER DEFAULT 0, blocked_reason INTEGER NOT NULL DEFAULT 0, can_pause INTEGER DEFAULT 1, can_cancel INTEGER DEFAULT 1, can_prioritize INTEGER DEFAULT 1, is_server_finished INTEGER DEFAULT 0, has_restore_data INTEGER DEFAULT -1, last_odr_action INTEGER DEFAULT 0, restore_data_size INTEGER DEFAULT 0, store_queue_refresh_count INTEGER DEFAULT 0, did_restore_data INTEGER DEFAULT 0, auto_update_state INTEGER NOT NULL DEFAULT 0, download_error BLOB, restore_error BLOB, PRIMARY KEY (pid));
+INSERT INTO download_state VALUES(1,5569645420818248077,'SSDownloadPhaseDownloading',0,0,0,1,1,1,0,-1,0,0,0,0,0,NULL,NULL);
+CREATE TABLE finished_download (pid INTEGER, finish_url TEXT, store_account_id INTEGER NOT NULL, store_item_id INTEGER, store_transaction_id TEXT, PRIMARY KEY(pid));
+CREATE TABLE persistent_download (download_id INTEGER, manager_id INTEGER, PRIMARY KEY (download_id, manager_id));
+CREATE TABLE persistent_manager (pid INTEGER, client_id TEXT, filters_external_downloads INTEGER DEFAULT 0, migration_version INTEGER DEFAULT 0, wake_up_on_finish INTEGER DEFAULT 0, persistence_id TEXT, PRIMARY KEY (pid));
+INSERT INTO persistent_manager VALUES(-6246541009592993137,'atc',1,1,0,'com.apple.atc');
+CREATE TABLE persistent_manager_kind (pid INTEGER, manager_id INTEGER, download_kind TEXT, PRIMARY KEY (pid));
+INSERT INTO persistent_manager_kind VALUES(-8770327809122496973,-6246541009592993137,'book');
+INSERT INTO persistent_manager_kind VALUES(-7544809463103175431,-6246541009592993137,'song');
+INSERT INTO persistent_manager_kind VALUES(-4662031388559539944,-6246541009592993137,'feature-movie');
+INSERT INTO persistent_manager_kind VALUES(-4590101242747058768,-6246541009592993137,'ebook');
+INSERT INTO persistent_manager_kind VALUES(-3220296290926311591,-6246541009592993137,'music-video');
+INSERT INTO persistent_manager_kind VALUES(90273581581313151,-6246541009592993137,'podcast');
+INSERT INTO persistent_manager_kind VALUES(1102968027830244570,-6246541009592993137,'tone');
+INSERT INTO persistent_manager_kind VALUES(3983066746635131272,-6246541009592993137,'tv-episode');
+INSERT INTO persistent_manager_kind VALUES(4701972979089210697,-6246541009592993137,'videoPodcast');
+INSERT INTO persistent_manager_kind VALUES(5927499584231367709,-6246541009592993137,'ringtone');
+CREATE TABLE preorder (pid INTEGER, artist_name TEXT, kind TEXT, release_date INTEGER, release_date_string TEXT, store_account_id INTEGER, store_item_id INTEGER, store_preorder_id INTEGER, title TEXT, image_collection_data BLOB, PRIMARY KEY (pid));
+CREATE TABLE canceled_preorder (pid INTEGER, store_account_id INTEGER NOT NULL DEFAULT 0, store_item_id INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (pid));
+CREATE TABLE client (pid INTEGER, audit_token_data BLOB, client_type INTEGER DEFAULT 0, client_id TEXT NOT NULL, PRIMARY KEY (pid), UNIQUE (client_id));
+INSERT INTO client VALUES(21019593206379536,X'fffffffff5010000f5010000f5010000f5010000a801000000000000aa040000',1,'com.apple.MobileStore');
+CREATE TABLE purchase (pid INTEGER, batch_id INTEGER DEFAULT 0, client_id INTEGER DEFAULT 0, order_id DOUBLE DEFAULT 0, state INTEGER DEFAULT 0, encoded_data BLOB, encoded_error BLOB, encoded_response BLOB, PRIMARY KEY (pid));
+CREATE TABLE purchase_manager (pid INTEGER, client_id_header TEXT, manager_id TEXT, process_id TEXT, url_bag_type TEXT, PRIMARY KEY (pid));
+CREATE TABLE application_workspace_state (pid INTEGER, bundle_id TEXT NOT NULL, download_id INTEGER, expected_phase TEXT NOT NULL DEFAULT 0, retry_count INTEGER NOT NULL DEFAULT 0, time_updated INTEGER NOT NULL DEFAULT 0, transaction_id INTEGER, PRIMARY KEY (pid), UNIQUE (bundle_id));
+CREATE TABLE trnsaction (pid INTEGER, bundle_id TEXT, type INTEGER DEFAULT 0, PRIMARY KEY (pid));
+INSERT INTO trnsaction VALUES(-5887596844075887950,NULL,0);
+CREATE INDEX application_workspace_state_bundle_id ON application_workspace_state (bundle_id);
+CREATE INDEX asset_download_id ON asset (download_id);
+CREATE INDEX download_priority_order_key ON download (priority DESC, order_key ASC);
+CREATE INDEX download_is_restore ON download (is_restore);
+CREATE INDEX download_kind ON download (kind);
+CREATE INDEX preorder_preorder_id ON preorder (store_preorder_id);
+COMMIT;
