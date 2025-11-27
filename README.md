@@ -1,12 +1,9 @@
-Fails to activate, will finish s0n.
+Activation is broken but it will be fixed
 
-Feel free to contribute if your code works, we're all on the same team.
-
+# R1nderpest
 <div>
   <img src="GUI_WIP.jpeg" alt="Image 1" style="width: 45%; height: auto;">
 </div>
-
-# R1nderpest
 
 Work in progress offline A12+ activator.
 
