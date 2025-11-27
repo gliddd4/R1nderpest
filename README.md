@@ -1,7 +1,10 @@
 Fails to activate, will finish s0n.
 
-Feel free to contribute if your code works, we're all on the same team 
+Feel free to contribute if your code works, we're all on the same team.
 
+<div>
+  <img src="GUI_WIP.jpeg" alt="Image 1" style="width: 45%; height: auto;">
+</div>
 
 # R1nderpest
 
