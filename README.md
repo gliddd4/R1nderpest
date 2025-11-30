@@ -1,11 +1,10 @@
-Activation is broken but it will be fixed
-
 # R1nderpest
 <div>
   <img src="GUI_WIP.jpeg" alt="Image 1" style="width: 45%; height: auto;">
 </div>
 
-Work in progress offline A12+ activator.
+Work in progress offline A12+ activator. Online support will come before offline support.
+[Telegram](https://telegram.org)
 
 ## Repository Structure
 
