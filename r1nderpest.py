@@ -28,10 +28,14 @@ import struct
 import binascii
 from collections import Counter
 import getpass
+from art import text2art
 
 base_dir = os.path.dirname(__file__)
 
 ctypes.windll.shcore.SetProcessDpiAwareness(0)
+
+print(text2art("R1nderPest"))
+print("--> Version 1.2 ALPHA <--")
 
 class Ui_MainWindow(object):
     def __init__(self):
@@ -47,7 +51,7 @@ class Ui_MainWindow(object):
         self.device_info = {}
         self.guid = None
         self.attempt_count = 0
-        self.max_attempts = 10
+        self.max_attempts = 15
         self.global_GUID = ""
     def setupUi(self, MainWindow):
         QFontDatabase.addApplicationFont(os.path.join(base_dir, "./fonts/FuturaCyrillicBold.ttf"))
@@ -454,7 +458,7 @@ class Ui_MainWindow(object):
         self.log("Rebooting device...", "info")
         
         # Try using pymobiledevice3 for reboot
-        code, _, err = self._run_cmd([f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe", "restart"])
+        code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "restart"])
         if code != 0:
             # Fallback to C:/R1nderPest/libimobiledevice/idevicediagnostics.exe
             code, _, err = self._run_cmd(["C:/R1nderPest/libimobiledevice/idevicediagnostics.exe", "restart"])
@@ -487,7 +491,7 @@ class Ui_MainWindow(object):
         if shutil.which("ifuse"):
             self.afc_mode = "ifuse"
         else:
-            self.afc_mode = f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe"
+            self.afc_mode = f"C:/R1nderPest/dependencies/pymobiledevice3.exe"
         self.log(f"AFC Transfer Mode: {self.afc_mode}", "info")
 
     def mount_afc(self):
@@ -703,7 +707,7 @@ class Ui_MainWindow(object):
             self.activateButton.setText(f"⏳ Searching GUID (Attempt {self.attempt_count} / {self.max_attempts}) ...")
             # Collect logs
             self.log("Collecting device logs...", "info")
-            code, _, err = self._run_cmd([f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe", "syslog", "collect", log_path], timeout=120)
+            code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "syslog", "collect", log_path], timeout=120)
             if code != 0:
                 self.log(f"Log collection failed: {err}", "error")
                 return None
@@ -946,6 +950,11 @@ class Ui_MainWindow(object):
             
         self.guid = self.get_guid_auto()
 
+        if not self.guid:
+            self.log(text="Could not get GUID!", type="error")
+            sys.exit()
+            
+
 
         print(self.global_GUID)
 
@@ -1055,7 +1064,7 @@ class Ui_MainWindow(object):
             if not self.mount_afc():
                 self.log(text="Mounting failed — falling back to pymobiledevice3", type="warn")
                 
-                self.afc_mode = f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe"
+                self.afc_mode = f"C:/R1nderPest/dependencies/pymobiledevice3.exe"
         
         if self.afc_mode == "ifuse":
             fpath = self.mount_point + target
@@ -1065,8 +1074,8 @@ class Ui_MainWindow(object):
             self.log("Uploaded via ifuse", "info")
             
         else:
-            self._run_cmd([f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe", "afc", "rm", target])
-            code, _, err = self._run_cmd([f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe", "afc", "push", local_db, target])
+            self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "rm", target])
+            code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "push", local_db, target])
             if code != 0:
                 self.log(f"AFC upload failed: {err}", "error")
                 self.activateButton.setText("❌ Upload failed!")
@@ -1097,7 +1106,7 @@ class Ui_MainWindow(object):
                     except Exception as e:
                         self.log(f"Failed to remove {wal_file}: {e}", "warn")
             else:
-                code, _, err = self._run_cmd([f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe", "afc", "rm", wal_file])
+                code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "rm", wal_file])
                 if code == 0:
                     self.log(f"Removed {wal_file} via pymobiledevice3", "info")
                 else:
@@ -1139,12 +1148,12 @@ class Ui_MainWindow(object):
                     return True
                 else:
                     tmp = "temp_plist_copy.plist"
-                    code, _, err = self._run_cmd([f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe", "afc", "pull", src_path, tmp])
+                    code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "pull", src_path, tmp])
                     if code != 0 or not os.path.exists(tmp) or os.path.getsize(tmp) == 0:
                         if os.path.exists(tmp):
                             os.remove(tmp)
                         return False
-                    code2, _, err2 = self._run_cmd([f"C:/Users/{getpass.getuser()}/AppData/Local/Programs/Python/Python313/Scripts/pymobiledevice3.exe", "afc", "push", tmp, dst_path])
+                    code2, _, err2 = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "push", tmp, dst_path])
                     os.remove(tmp)
                     return code2 == 0
             except Exception:
@@ -1213,116 +1222,93 @@ class Ui_MainWindow(object):
 
 
     def SearchingDevices(self):
-        if os.path.exists("C:/R1nderPest/conf.json"):
-
-            while True:
-
-                time.sleep(3)
-
-                process = subprocess.Popen(
-                    ['C:/R1nderpest/libimobiledevice/ideviceinfo.exe'],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    stdin=subprocess.PIPE,
-                    text=True,
-                    bufsize=1
-                )
-
-                output = str(process.stdout.read())
-
-                process.terminate()
-            
 
 
-                if "ERROR: No device found!\n" in output:
-                    self.label_11.setText("⏳ Searching for devices...")
-                else:
-                    self.label_11.setText("✅ Connected!")
+        while True:
 
-                    time.sleep(2.3)
+            time.sleep(3)
 
-                    try:
-                        ProductVersion = output.split("ProductVersion: ")[1].split("\n")[0]
-                        ProductType = output.split("ProductType: ")[1].split("\n")[0]
-                        UDID = output.split("UniqueDeviceID: ")[1].split("\n")[0]
-                        DeviceName = output.split("DeviceName: ")[1].split("\n")[0]
-                        ActivationState = output.split("ActivationState: ")[1].split("\n")[0]
-                    except:
-                        self.log(text="Could not get device info!", type="error")
-                        self.activateButton.setText("Could not get device info!")
-                        QtWidgets.QApplication.processEvents()
-                        sys.exit()
-                        break
+            process = subprocess.Popen(
+                ['C:/R1nderpest/libimobiledevice/ideviceinfo.exe'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
 
-                    self.log(text="Device Connected!", type="success")
-                    self.log(text=f"Detected device with: ", type="info")
-                    self.log(text=f"    iOS Version: {ProductVersion}\n    Product Type: {ProductType}\n    UDID: {UDID}\n    Device Name: {DeviceName}", type="none")
+            output = str(process.stdout.read())
 
-                    self.Intro.hide()
-                    self.HomePage.show()
-
-                    self.DeviceName.setText(f"📱 {DeviceName}")
-                    self.UDID.setText(f"UDID: {UDID}")
-                    self.iOSVersion.setText(f"iOS Version: {ProductVersion}")
-                    self.ProductType.setText(f"Product Type: {ProductType}")
-                    self.ActivationState.setText(f"Activation State: {ActivationState}")
-
-                    if ProductVersion == "26.1" or ProductVersion == "26.0.1" or ProductVersion == "26.0" or ProductVersion == "18.7.2" or ProductVersion == "18.7.1":
-                        self.log(text=f"Device is {Fore.GREEN}SUPPORTED!{Fore.RESET}", type="success")
-                        self.activateButton.setText("🚀 Activate device!")
-                        self.activateButton.setStyleSheet("""
-                        background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(21, 151, 255, 255), stop:1 rgba(113, 163, 168, 255));
-                        color: rgb(255, 255, 255);
-                        border-radius: 15px;                            
-                        """)
-                        self.ProductType_3.setText("SUPPORTED!")
-                        self.ProductType_3.setStyleSheet("""
-                        color: rgb(34, 255, 16);
-                        background-color: rgba(255, 255, 255, 0);                                 
-                        """)
-                    else:
-                        self.log(text=f"Device is {Fore.RED}UNSUPPORTED!{Fore.RESET}", type="error")
-                        self.activateButton.setText("Unsupported")
-                        self.activateButton.setDisabled(True)
-                        self.activateButton.setStyleSheet("""
-                        background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(255, 0, 0, 255), stop:1 rgba(143, 0, 0, 255));
-                        color: rgb(255, 255, 255);
-                        border-radius: 15px;                            
-                        """)
-                        self.ProductType_3.setText("UNSUPPORTED!")
-                        self.ProductType_3.setStyleSheet("""
-                        color: rgb(252, 0, 6);
-                        background-color: rgba(255, 255, 255, 0);                                 
-                        """)
+            process.terminate()
+        
 
 
+            if "ERROR: No device found!\n" in output:
+                self.label_11.setText("⏳ Searching for devices...")
+            else:
+                self.label_11.setText("✅ Connected!")
 
+                time.sleep(2.3)
+
+                try:
+                    ProductVersion = output.split("ProductVersion: ")[1].split("\n")[0]
+                    ProductType = output.split("ProductType: ")[1].split("\n")[0]
+                    UDID = output.split("UniqueDeviceID: ")[1].split("\n")[0]
+                    DeviceName = output.split("DeviceName: ")[1].split("\n")[0]
+                    ActivationState = output.split("ActivationState: ")[1].split("\n")[0]
+                except:
+                    self.log(text="Could not get device info!", type="error")
+                    self.activateButton.setText("Could not get device info!")
+                    QtWidgets.QApplication.processEvents()
+                    sys.exit()
                     break
-        elif os.path.exists("C:/R1nderPest/conf1.json"):
-            self.activateButton.setText("Installing dependencies...")
-            QtWidgets.QApplication.processEvents()
-            time.sleep(2)
-            os.chdir("dependencies")
-            subprocess.Popen(
-                ['install2.bat']
-            )
-            file = open("C:/R1nderPest/conf.json", "a+")
-            file.close()
-            time.sleep(1)
-            os._exit(1)
-        else:
-            self.activateButton.setText("Installing dependencies...")
-            QtWidgets.QApplication.processEvents()
-            time.sleep(2)
-            os.chdir("dependencies")
-            subprocess.Popen(
-                ['install1.bat']
-            )
-            file = open("C:/R1nderPest/conf1.json", "a+")
-            file.close()
-            time.sleep(1)
-            os._exit(1)
-           
+
+                self.log(text="Device Connected!", type="success")
+                self.log(text=f"Detected device with: ", type="info")
+                self.log(text=f"    iOS Version: {ProductVersion}\n    Product Type: {ProductType}\n    UDID: {UDID}\n    Device Name: {DeviceName}", type="none")
+
+                self.Intro.hide()
+                self.HomePage.show()
+
+                self.DeviceName.setText(f"📱 {DeviceName}")
+                self.UDID.setText(f"UDID: {UDID}")
+                self.iOSVersion.setText(f"iOS Version: {ProductVersion}")
+                self.ProductType.setText(f"Product Type: {ProductType}")
+                self.ActivationState.setText(f"Activation State: {ActivationState}")
+
+                if ProductVersion == "26.1" or ProductVersion == "26.0.1" or ProductVersion == "26.0" or ProductVersion == "18.7.2" or ProductVersion == "18.7.1":
+                    self.log(text=f"Device is {Fore.GREEN}SUPPORTED!{Fore.RESET}", type="success")
+                    self.activateButton.setText("🚀 Activate device!")
+                    self.activateButton.setStyleSheet("""
+                    background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(21, 151, 255, 255), stop:1 rgba(113, 163, 168, 255));
+                    color: rgb(255, 255, 255);
+                    border-radius: 15px;                            
+                    """)
+                    self.ProductType_3.setText("SUPPORTED!")
+                    self.ProductType_3.setStyleSheet("""
+                    color: rgb(34, 255, 16);
+                    background-color: rgba(255, 255, 255, 0);                                 
+                    """)
+                else:
+                    self.log(text=f"Device is {Fore.RED}UNSUPPORTED!{Fore.RESET}", type="error")
+                    self.activateButton.setText("Unsupported")
+                    self.activateButton.setDisabled(True)
+                    self.activateButton.setStyleSheet("""
+                    background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(255, 0, 0, 255), stop:1 rgba(143, 0, 0, 255));
+                    color: rgb(255, 255, 255);
+                    border-radius: 15px;                            
+                    """)
+                    self.ProductType_3.setText("UNSUPPORTED!")
+                    self.ProductType_3.setStyleSheet("""
+                    color: rgb(252, 0, 6);
+                    background-color: rgba(255, 255, 255, 0);                                 
+                    """)
+
+
+
+                break
+    
+        
     def log(self, text: str, type: str):
         if type == "info":
             print(f"[{Fore.CYAN}i{Fore.RESET}]: {text}")
