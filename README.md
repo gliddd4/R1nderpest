@@ -27,12 +27,8 @@
 1. **iTunes** installed ([Download here](https://support.apple.com/en-us/106372))
 7. Windows 10/11 (macOS & Linux versions coming soon)
 
-### **Installation**
-
-
 **If you have an older version installed, delete the R1nderpest folder in C:/**
 
-Download and install the program. The first time you run it, it will install Python and then Visual C++ Build Tools. After the installation is complete, run the program again. This time, it will install pymobiledevice3. After installation, the program will close; open it.
 
 ## **📄 Credits**
 
