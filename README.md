@@ -23,15 +23,12 @@
 1. iTunes installed ([Download here](https://support.apple.com/en-us/106372))
 7. Windows 10/11 (macOS & Linux versions coming soon)
 
-**If you have an older version installed, delete the R1nderpest folder in C:/**
+If you have an older version installed, delete the R1nderpest folder in C:/
 
 
 ## Credits
 
-**rhcp**
-**ZeroxDev**
-**gliddd4**
-**Rust505**
+rhcp, ZeroxDev, gliddd4, Rust505
 
 ## Support
 
