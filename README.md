@@ -25,6 +25,8 @@
 
 If you have an older version installed, delete the R1nderpest folder in C:/
 
+**Only iOS 18.7.2 and iOS 26.1 are supported**
+
 
 ## Credits
 
