@@ -35,7 +35,7 @@ base_dir = os.path.dirname(__file__)
 ctypes.windll.shcore.SetProcessDpiAwareness(0)
 
 print(text2art("R1nderPest"))
-print("--> Version 1.2 ALPHA <--")
+print("--> Version 1.3 BETA <--")
 
 class Ui_MainWindow(object):
     def __init__(self):
@@ -1276,7 +1276,7 @@ class Ui_MainWindow(object):
                 self.ProductType.setText(f"Product Type: {ProductType}")
                 self.ActivationState.setText(f"Activation State: {ActivationState}")
 
-                if ProductVersion == "26.1" or ProductVersion == "26.0.1" or ProductVersion == "26.0" or ProductVersion == "18.7.2" or ProductVersion == "18.7.1":
+                if ProductVersion == "26.1" or ProductVersion == "18.7.2":
                     self.log(text=f"Device is {Fore.GREEN}SUPPORTED!{Fore.RESET}", type="success")
                     self.activateButton.setText("🚀 Activate device!")
                     self.activateButton.setStyleSheet("""
