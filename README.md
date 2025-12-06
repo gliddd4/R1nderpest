@@ -13,7 +13,7 @@
 ##  Features
 - Free & Open Source
 - Supports iPhone XR through iPhone 16 Pro Max (A12-A18)
-- Supports iOS 18.7.2 and 26.1
+- Supports only iOS 18.7.2 and 26.1
 - Easy to use GUI
 - Actively developed
 
