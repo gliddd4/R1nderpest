@@ -33,7 +33,11 @@ from pathlib import Path
 
 base_dir = os.path.dirname(__file__)
 
-ctypes.windll.shcore.SetProcessDpiAwareness(0)
+if os.name == 'nt':
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(0)
+    except Exception:
+        pass
 
 print(text2art("R1nderPest"))
 print("--> Version 1.3 BETA <--")
@@ -438,11 +442,11 @@ class Ui_MainWindow(object):
         
         bin_dir = resources_path / 'bin'
         if bin_dir.exists():
-            env['PATH'] = str(bin_dir) + ';' + env.get('PATH', '')
+            env['PATH'] = str(bin_dir) + os.pathsep + env.get('PATH', '')
         
         lib_dir = resources_path / 'lib'
         if lib_dir.exists():
-            env['DYLD_LIBRARY_PATH'] = str(lib_dir) + ';' + env.get('DYLD_LIBRARY_PATH', '')
+            env['DYLD_LIBRARY_PATH'] = str(lib_dir) + os.pathsep + env.get('DYLD_LIBRARY_PATH', '')
         
         try:
             result = subprocess.run(
