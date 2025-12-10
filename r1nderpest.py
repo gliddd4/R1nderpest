@@ -29,6 +29,7 @@ import binascii
 from collections import Counter
 import getpass
 from art import text2art
+from pathlib import Path
 
 base_dir = os.path.dirname(__file__)
 
@@ -63,8 +64,7 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName("centralwidget")
         self.Intro = QtWidgets.QFrame(self.centralwidget)
         self.Intro.setGeometry(QtCore.QRect(-10, -10, 921, 601))
-        self.Intro.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(25, 25, 25, 255), stop:1 rgba(1, 27, 59, 255));\n"
-"border-radius: 0px;")
+        self.Intro.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(25, 25, 25, 255), stop:1 rgba(1, 27, 59, 255));\n""border-radius: 0px;")
         self.Intro.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.Intro.setFrameShadow(QtWidgets.QFrame.Raised)
         self.Intro.setObjectName("Intro")
@@ -83,8 +83,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.label_2.setFont(font)
-        self.label_2.setStyleSheet("background-color: rgba(255, 255, 255, 0);\n"
-"color: rgb(255, 255, 255);")
+        self.label_2.setStyleSheet("background-color: rgba(255, 255, 255, 0);\n""color: rgb(255, 255, 255);")
         self.label_2.setObjectName("label_2")
         self.label_7 = QtWidgets.QLabel(self.Intro)
         self.label_7.setGeometry(QtCore.QRect(-20, 60, 961, 531))
@@ -108,8 +107,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.label_10.setFont(font)
-        self.label_10.setStyleSheet("background-color: rgba(255, 255, 255, 0);\n"
-"color: rgb(255, 255, 255, 187);")
+        self.label_10.setStyleSheet("background-color: rgba(255, 255, 255, 0);\n""color: rgb(255, 255, 255);")
         self.label_10.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
         self.label_10.setWordWrap(True)
         self.label_10.setObjectName("label_10")
@@ -121,15 +119,13 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.label_11.setFont(font)
-        self.label_11.setStyleSheet("background-color: rgba(255, 255, 255, 0);\n"
-"color: rgb(255, 255, 255);")
+        self.label_11.setStyleSheet("background-color: rgba(255, 255, 255, 0);\n""color: rgb(255, 255, 255);")
         self.label_11.setAlignment(QtCore.Qt.AlignCenter)
         self.label_11.setWordWrap(True)
         self.label_11.setObjectName("label_11")
         self.frame_5 = QtWidgets.QFrame(self.Intro)
         self.frame_5.setGeometry(QtCore.QRect(110, 370, 311, 41))
-        self.frame_5.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n"
-"border-radius: 15px;")
+        self.frame_5.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n""border-radius: 15px;")
         self.frame_5.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_5.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_5.setObjectName("frame_5")
@@ -142,8 +138,7 @@ class Ui_MainWindow(object):
         self.label_11.raise_()
         self.HomePage = QtWidgets.QFrame(self.centralwidget)
         self.HomePage.setGeometry(QtCore.QRect(0, -10, 921, 601))
-        self.HomePage.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(25, 25, 25, 255), stop:1 rgba(1, 27, 59, 255));\n"
-"border-radius: 0px;")
+        self.HomePage.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(25, 25, 25, 255), stop:1 rgba(1, 27, 59, 255));\n""border-radius: 0px;")
         self.HomePage.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.HomePage.setFrameShadow(QtWidgets.QFrame.Raised)
         self.HomePage.setObjectName("HomePage")
@@ -162,8 +157,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.DeviceName.setFont(font)
-        self.DeviceName.setStyleSheet("color: rgb(255, 255, 255);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.DeviceName.setStyleSheet("color: rgb(255, 255, 255);\n""background-color: rgba(255, 255, 255, 0);")
         self.DeviceName.setObjectName("DeviceName")
         self.UDID = QtWidgets.QLabel(self.HomePage)
         self.UDID.setGeometry(QtCore.QRect(340, 160, 491, 41))
@@ -173,8 +167,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.UDID.setFont(font)
-        self.UDID.setStyleSheet("color: rgb(255, 255, 255);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.UDID.setStyleSheet("color: rgb(255, 255, 255);\n""background-color: rgba(255, 255, 255, 0);")
         self.UDID.setObjectName("UDID")
         self.iOSVersion = QtWidgets.QLabel(self.HomePage)
         self.iOSVersion.setGeometry(QtCore.QRect(340, 210, 491, 41))
@@ -184,8 +177,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.iOSVersion.setFont(font)
-        self.iOSVersion.setStyleSheet("color: rgb(255, 255, 255);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.iOSVersion.setStyleSheet("color: rgb(255, 255, 255);\n""background-color: rgba(255, 255, 255, 0);")
         self.iOSVersion.setObjectName("iOSVersion")
         self.ProductType = QtWidgets.QLabel(self.HomePage)
         self.ProductType.setGeometry(QtCore.QRect(340, 260, 491, 41))
@@ -195,8 +187,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.ProductType.setFont(font)
-        self.ProductType.setStyleSheet("color: rgb(255, 255, 255);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.ProductType.setStyleSheet("color: rgb(255, 255, 255);\n""background-color: rgba(255, 255, 255, 0);")
         self.ProductType.setObjectName("ProductType")
         self.ProductType_2 = QtWidgets.QLabel(self.HomePage)
         self.ProductType_2.setGeometry(QtCore.QRect(340, 360, 491, 41))
@@ -206,8 +197,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.ProductType_2.setFont(font)
-        self.ProductType_2.setStyleSheet("color: rgb(255, 255, 255);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.ProductType_2.setStyleSheet("color: rgb(255, 255, 255);\n""background-color: rgba(255, 255, 255, 0);")
         self.ProductType_2.setObjectName("ProductType_2")
         self.ProductType_3 = QtWidgets.QLabel(self.HomePage)
         self.ProductType_3.setGeometry(QtCore.QRect(480, 360, 491, 41))
@@ -217,8 +207,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.ProductType_3.setFont(font)
-        self.ProductType_3.setStyleSheet("color: rgb(34, 255, 16);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.ProductType_3.setStyleSheet("color: rgb(34, 255, 16);\n""background-color: rgba(255, 255, 255, 0);")
         self.ProductType_3.setObjectName("ProductType_3")
         self.label_6 = QtWidgets.QLabel(self.HomePage)
         self.label_6.setGeometry(QtCore.QRect(50, 450, 221, 151))
@@ -241,58 +230,47 @@ class Ui_MainWindow(object):
         font.setPointSize(14)
         self.activateButton.setFont(font)
         self.activateButton.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.activateButton.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(21, 151, 255, 255), stop:1 rgba(113, 163, 168, 255));\n"
-"color: rgb(255, 255, 255);\n"
-"border-radius: 15px;")
+        self.activateButton.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(21, 151, 255, 255), stop:1 rgba(113, 163, 168, 255));\n""color: rgb(255, 255, 255);\n""border-radius: 15px;")
         self.activateButton.setObjectName("activateButton")
         self.pbFrame = QtWidgets.QFrame(self.HomePage)
         self.pbFrame.setGeometry(QtCore.QRect(330, 470, 504, 12))
-        self.pbFrame.setStyleSheet("background-color: rgb(2, 33, 51);\n"
-"color: rgb(255, 255, 255);\n"
-"border-radius: 5px;")
+        self.pbFrame.setStyleSheet("background-color: rgb(2, 33, 51);\n""color: rgb(255, 255, 255);\n""border-radius: 5px;")
         self.pbFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.pbFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.pbFrame.setObjectName("pbFrame")
         self.pb = QtWidgets.QFrame(self.pbFrame)
         self.pb.setGeometry(QtCore.QRect(0, 0, 0, 12))
-        self.pb.setStyleSheet("background-color: rgb(19, 159, 255);\n"
-"color: rgb(255, 255, 255);\n"
-"border-radius: 5px;")
+        self.pb.setStyleSheet("background-color: rgb(19, 159, 255);\n""color: rgb(255, 255, 255);\n""border-radius: 5px;")
         self.pb.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.pb.setFrameShadow(QtWidgets.QFrame.Raised)
         self.pb.setObjectName("pb")
         self.frame = QtWidgets.QFrame(self.HomePage)
         self.frame.setGeometry(QtCore.QRect(330, 160, 501, 41))
-        self.frame.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n"
-"border-radius: 10px;")
+        self.frame.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n""border-radius: 10px;")
         self.frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame.setObjectName("frame")
         self.frame_2 = QtWidgets.QFrame(self.HomePage)
         self.frame_2.setGeometry(QtCore.QRect(330, 210, 501, 41))
-        self.frame_2.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n"
-"border-radius: 10px;")
+        self.frame_2.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n""border-radius: 10px;")
         self.frame_2.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_2.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_2.setObjectName("frame_2")
         self.frame_3 = QtWidgets.QFrame(self.HomePage)
         self.frame_3.setGeometry(QtCore.QRect(330, 260, 501, 41))
-        self.frame_3.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n"
-"border-radius: 10px;")
+        self.frame_3.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n""border-radius: 10px;")
         self.frame_3.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_3.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_3.setObjectName("frame_3")
         self.frame_4 = QtWidgets.QFrame(self.HomePage)
         self.frame_4.setGeometry(QtCore.QRect(330, 360, 501, 41))
-        self.frame_4.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n"
-"border-radius: 10px;")
+        self.frame_4.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n""border-radius: 10px;")
         self.frame_4.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_4.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_4.setObjectName("frame_4")
         self.frame_6 = QtWidgets.QFrame(self.HomePage)
         self.frame_6.setGeometry(QtCore.QRect(330, 310, 501, 41))
-        self.frame_6.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n"
-"border-radius: 10px;")
+        self.frame_6.setStyleSheet("background-color: rgba(0, 0, 0, 46);\n""border-radius: 10px;")
         self.frame_6.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_6.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_6.setObjectName("frame_6")
@@ -304,8 +282,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.ActivationState.setFont(font)
-        self.ActivationState.setStyleSheet("color: rgb(255, 255, 255);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.ActivationState.setStyleSheet("color: rgb(255, 255, 255);\n""background-color: rgba(255, 255, 255, 0);")
         self.ActivationState.setObjectName("ActivationState")
         self.DeviceName.raise_()
         self.label_6.raise_()
@@ -326,8 +303,7 @@ class Ui_MainWindow(object):
         self.ActivationState.raise_()
         self.Done = QtWidgets.QFrame(self.centralwidget)
         self.Done.setGeometry(QtCore.QRect(0, -10, 921, 601))
-        self.Done.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(25, 25, 25, 255), stop:1 rgba(1, 27, 59, 255));\n"
-"border-radius: 0px;")
+        self.Done.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(25, 25, 25, 255), stop:1 rgba(1, 27, 59, 255));\n""border-radius: 0px;")
         self.Done.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.Done.setFrameShadow(QtWidgets.QFrame.Raised)
         self.Done.setObjectName("Done")
@@ -347,8 +323,7 @@ class Ui_MainWindow(object):
         font.setFamily("Futura")
         font.setPointSize(36)
         self.DeviceName_3.setFont(font)
-        self.DeviceName_3.setStyleSheet("color: rgb(255, 255, 255);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.DeviceName_3.setStyleSheet("color: rgb(255, 255, 255);\n""background-color: rgba(255, 255, 255, 0);")
         self.DeviceName_3.setObjectName("DeviceName_3")
         self.UDID_3 = QtWidgets.QLabel(self.Done)
         self.UDID_3.setGeometry(QtCore.QRect(330, 160, 491, 171))
@@ -356,8 +331,7 @@ class Ui_MainWindow(object):
         font.setFamily("Futura")
         font.setPointSize(18)
         self.UDID_3.setFont(font)
-        self.UDID_3.setStyleSheet("color: rgb(255, 255, 255);\n"
-"background-color: rgba(255, 255, 255, 0);")
+        self.UDID_3.setStyleSheet("color: rgb(255, 255, 255);\n""background-color: rgba(255, 255, 255, 0);")
         self.UDID_3.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
         self.UDID_3.setWordWrap(True)
         self.UDID_3.setObjectName("UDID_3")
@@ -382,9 +356,7 @@ class Ui_MainWindow(object):
         font.setPointSize(18)
         self.backToHomePage.setFont(font)
         self.backToHomePage.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.backToHomePage.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(21, 151, 255, 255), stop:1 rgba(113, 163, 168, 255));\n"
-"color: rgb(255, 255, 255);\n"
-"border-radius: 15px;")
+        self.backToHomePage.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(21, 151, 255, 255), stop:1 rgba(113, 163, 168, 255));\n""color: rgb(255, 255, 255);\n""border-radius: 15px;")
         self.backToHomePage.setObjectName("backToHomePage")
         self.label_19.raise_()
         self.label_20.raise_()
@@ -417,15 +389,76 @@ class Ui_MainWindow(object):
 
     ## Bypass Code
 
-    def _run_cmd(self, cmd, timeout=None):
-        try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-            return res.returncode, res.stdout.strip(), res.stderr.strip()
-        except subprocess.TimeoutExpired:
-            return 124, "", "Timeout"
-        except Exception as e:
-            return 1, "", str(e)
+    def get_bundle_path():
+        if getattr(sys, 'frozen', False):
+            bundle_path = Path(sys.executable).parent.parent.parent
+            resources_path = bundle_path / 'Contents' / 'Resources'
+            return resources_path
+        else:
+            return Path.cwd()
 
+    def find_binary(bin_name):
+        resources_path = Ui_MainWindow.get_bundle_path()
+        bundle_bin_path = resources_path / 'bin' / bin_name
+
+        if bundle_bin_path.exists():
+            return str(bundle_bin_path)
+
+        system_paths_lnx = ['/usr/local/bin', '/opt/homebrew/bin', '/usr/bin']
+        for path in system_paths_lnx:
+            sys_bin_path_lnx = Path(path) / bin_name
+            if sys_bin_path_lnx.exists():
+                return str(sys_bin_path_lnx)
+
+        system_paths_win = [str(Path.cwd()), str(Path(__file__).parent), r'C:/R1nderPest/libimobiledevice', r'C:/R1nderPest/dependencies/']
+        for path in system_paths_win:
+            sys_bin_path_win = (Path(path) / bin_name).with_suffix(".exe")
+            if sys_bin_path_win.exists():
+                return str(sys_bin_path_win)
+
+        return None
+
+    def _run_cmd(self, cmd, timeout=None):
+        if isinstance(cmd, list) and cmd:
+            bin_name = cmd[0]
+            full_path = Ui_MainWindow.find_binary(bin_name)
+            if full_path:
+                cmd[0] = full_path
+        
+        elif isinstance(cmd, str):
+            parts = cmd.split()
+            if parts:
+                bin_name = parts[0]
+                full_path = Ui_MainWindow.find_binary(bin_name)
+                if full_path:
+                    cmd = cmd.replace(bin_name, full_path, 1)
+        
+        env = os.environ.copy()
+        resources_path = Ui_MainWindow.get_bundle_path()
+        
+        bin_dir = resources_path / 'bin'
+        if bin_dir.exists():
+            env['PATH'] = str(bin_dir) + ';' + env.get('PATH', '')
+        
+        lib_dir = resources_path / 'lib'
+        if lib_dir.exists():
+            env['DYLD_LIBRARY_PATH'] = str(lib_dir) + ';' + env.get('DYLD_LIBRARY_PATH', '')
+        
+        try:
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=timeout,
+                shell=isinstance(cmd, str),
+                env=env
+            )
+            return result.returncode, result.stdout, result.stderr
+            
+        except subprocess.TimeoutExpired:
+            return -1, "", "Command timed out"
+        except Exception as e:
+            return -1, "", str(e)
 
     def _curl_download(self, url, output_file):
         """Download with SSL verification disabled"""
@@ -458,10 +491,10 @@ class Ui_MainWindow(object):
         self.log("Rebooting device...", "info")
         
         # Try using pymobiledevice3 for reboot
-        code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "restart"])
+        code, _, err = self._run_cmd([f"pymobiledevice3", "restart"])
         if code != 0:
-            # Fallback to C:/R1nderPest/libimobiledevice/idevicediagnostics.exe
-            code, _, err = self._run_cmd(["C:/R1nderPest/libimobiledevice/idevicediagnostics.exe", "restart"])
+            # Fallback to idevicediagnostics
+            code, _, err = self._run_cmd(["idevicediagnostics", "restart"])
             if code != 0:
                 self.log(f"Soft reboot failed: {err}", "warn")
                 self.log("Please reboot device manually and press Enter to continue...", "warn")
@@ -473,7 +506,7 @@ class Ui_MainWindow(object):
         # Wait for device reboot
         for i in range(60):  # 60 attempts × 5 seconds = 5 minutes
             time.sleep(5)
-            code, _, _ = self._run_cmd(["C:/R1nderPest/libimobiledevice/ideviceinfo.exe"])
+            code, _, _ = self._run_cmd(["ideviceinfo"])
             if code == 0:
                 self.log(f"Device reconnected after {i * 5} seconds", "success")
                 # Give device extra time for full boot
@@ -487,12 +520,29 @@ class Ui_MainWindow(object):
         return False
 
     def verify_dependencies(self):
-        self.log("Verifying System Requirements...", "info")
+        self.log("Verifying System Requirements...", "step")
+
+        self.os = os.name
+
+        if self.os == "nt":
+            self.log(f" Operating System set to: Windows", "info")
+        else:
+            self.log(f" Operating System set to: Other", "info")
+        
+        required_bins = ['ideviceinfo', 'idevice_id', 'idevivediagnostics']
+        for bin_name in required_bins:
+            path = Ui_MainWindow.find_binary(bin_name)
+            if path:
+                self.log(f"✅ {bin_name}: {path}", "info")
+            else:
+                self.log(f"❌ {bin_name}: Not found", "error")
+                raise Exception(f"Required binary not found: {bin_name}")
+
         if shutil.which("ifuse"):
             self.afc_mode = "ifuse"
         else:
-            self.afc_mode = f"C:/R1nderPest/dependencies/pymobiledevice3.exe"
-        self.log(f"AFC Transfer Mode: {self.afc_mode}", "info")
+            self.afc_mode = f"pymobiledevice3"
+            self.log(f"AFC Transfer Mode: {self.afc_mode}", "info")
 
     def mount_afc(self):
         if self.afc_mode != "ifuse":
@@ -523,7 +573,7 @@ class Ui_MainWindow(object):
 
     def detect_device(self):
         self.log("Detecting Device...", "info")
-        code, out, err = self._run_cmd(["C:/R1nderPest/libimobiledevice/ideviceinfo.exe"])
+        code, out, err = self._run_cmd(["ideviceinfo"])
         if code != 0:
             self.log(f"Device not found. Error: {err or 'Unknown'}", "error")
             sys.exit(1)
@@ -534,11 +584,6 @@ class Ui_MainWindow(object):
                 key, val = line.split(": ", 1)
                 info[key.strip()] = val.strip()
         self.device_info = info
-        
-        print(f"UDID: {info.get('UniqueDeviceID','?')}")
-        
-        if info.get('ActivationState') == 'Activated':
-            print(f"{Style.YELLOW}Warning: Device already activated.{Style.RESET}")
 
     def get_guid_manual(self):
         """Manual GUID input with validation"""
@@ -707,7 +752,7 @@ class Ui_MainWindow(object):
             self.activateButton.setText(f"⏳ Searching GUID (Attempt {self.attempt_count} / {self.max_attempts}) ...")
             # Collect logs
             self.log("Collecting device logs...", "info")
-            code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "syslog", "collect", log_path], timeout=120)
+            code, _, err = self._run_cmd([f"pymobiledevice3", "syslog", "collect", log_path], timeout=120)
             if code != 0:
                 self.log(f"Log collection failed: {err}", "error")
                 return None
@@ -907,23 +952,11 @@ class Ui_MainWindow(object):
 
         time.sleep(0.4)
 
-        process = subprocess.Popen(
-                ['C:/R1nderpest/libimobiledevice/ideviceinfo.exe'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                stdin=subprocess.PIPE,
-                text=True,
-                bufsize=1
-        )
-
-        output = str(process.stdout.read())
-
-
-        process.terminate()
+        self.detect_device()
 
         self.setProgress(progress=10)
 
-        if "ERROR: No device found!" in output:
+        if "ERROR: No device found!" in self.device_info:
             self.log(text="Failed to connect to device!", type="error")
             self.log(text="Process finished with error.", type="error")
             self.pb.setStyleSheet("""
@@ -933,7 +966,7 @@ class Ui_MainWindow(object):
             """)
             self.activateButton.setText("❌ Failed to connect to device")
             QtWidgets.QApplication.processEvents()
-        elif "ProductType" in output:
+        elif "ProductType" in self.device_info:
             self.log(text="Successfully conected to device!", type="success")
             self.activateButton.setText("⏳ Searching GUID (Attempt 1) ...")
             QtWidgets.QApplication.processEvents()
@@ -963,8 +996,8 @@ class Ui_MainWindow(object):
         self.activateButton.setText("⏳ Requesting payload...")
         QtWidgets.QApplication.processEvents()
 
-        prd = output.split("ProductType: ")[1].split("\n")[0]
-        sn = output.split("SerialNumber: ")[1].split("\n")[0]
+        prd = self.device_info.split("ProductType: ")[1].split("\n")[0]
+        sn = self.device_info.split("SerialNumber: ")[1].split("\n")[0]
 
         stage1_url, stage2_url, stage3_url = self.get_all_urls_from_server(prd, self.guid, sn)
 
@@ -1064,7 +1097,7 @@ class Ui_MainWindow(object):
             if not self.mount_afc():
                 self.log(text="Mounting failed — falling back to pymobiledevice3", type="warn")
                 
-                self.afc_mode = f"C:/R1nderPest/dependencies/pymobiledevice3.exe"
+                self.afc_mode = f"pymobiledevice3"
         
         if self.afc_mode == "ifuse":
             fpath = self.mount_point + target
@@ -1074,8 +1107,8 @@ class Ui_MainWindow(object):
             self.log("Uploaded via ifuse", "info")
             
         else:
-            self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "rm", target])
-            code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "push", local_db, target])
+            self._run_cmd([f"pymobiledevice3", "afc", "rm", target])
+            code, _, err = self._run_cmd([f"pymobiledevice3", "afc", "push", local_db, target])
             if code != 0:
                 self.log(f"AFC upload failed: {err}", "error")
                 self.activateButton.setText("❌ Upload failed!")
@@ -1106,7 +1139,7 @@ class Ui_MainWindow(object):
                     except Exception as e:
                         self.log(f"Failed to remove {wal_file}: {e}", "warn")
             else:
-                code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "rm", wal_file])
+                code, _, err = self._run_cmd([f"pymobiledevice3", "afc", "rm", wal_file])
                 if code == 0:
                     self.log(f"Removed {wal_file} via pymobiledevice3", "info")
                 else:
@@ -1148,12 +1181,12 @@ class Ui_MainWindow(object):
                     return True
                 else:
                     tmp = "temp_plist_copy.plist"
-                    code, _, err = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "pull", src_path, tmp])
+                    code, _, err = self._run_cmd([f"pymobiledevice3", "afc", "pull", src_path, tmp])
                     if code != 0 or not os.path.exists(tmp) or os.path.getsize(tmp) == 0:
                         if os.path.exists(tmp):
                             os.remove(tmp)
                         return False
-                    code2, _, err2 = self._run_cmd([f"C:/R1nderPest/dependencies/pymobiledevice3.exe", "afc", "push", tmp, dst_path])
+                    code2, _, err2 = self._run_cmd([f"pymobiledevice3", "afc", "push", tmp, dst_path])
                     os.remove(tmp)
                     return code2 == 0
             except Exception:
@@ -1226,36 +1259,18 @@ class Ui_MainWindow(object):
 
         while True:
 
-            time.sleep(3)
-
-            process = subprocess.Popen(
-                ['C:/R1nderpest/libimobiledevice/ideviceinfo.exe'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                stdin=subprocess.PIPE,
-                text=True,
-                bufsize=1
-            )
-
-            output = str(process.stdout.read())
-
-            process.terminate()
-        
-
-
-            if "ERROR: No device found!\n" in output:
-                self.label_11.setText("⏳ Searching for devices...")
-            else:
+                self.detect_device()
+ 
                 self.label_11.setText("✅ Connected!")
 
                 time.sleep(2.3)
 
                 try:
-                    ProductVersion = output.split("ProductVersion: ")[1].split("\n")[0]
-                    ProductType = output.split("ProductType: ")[1].split("\n")[0]
-                    UDID = output.split("UniqueDeviceID: ")[1].split("\n")[0]
-                    DeviceName = output.split("DeviceName: ")[1].split("\n")[0]
-                    ActivationState = output.split("ActivationState: ")[1].split("\n")[0]
+                    ProductVersion = self.device_info.get('ProductVersion')
+                    ProductType = self.device_info.get('ProductType')
+                    UDID = self.device_info.get('UniqueDeviceID')
+                    DeviceName = self.device_info.get('DeviceName')
+                    ActivationState = self.device_info.get('ActivationState')
                 except:
                     self.log(text="Could not get device info!", type="error")
                     self.activateButton.setText("Could not get device info!")
@@ -1346,9 +1361,7 @@ class Ui_MainWindow(object):
         self.ActivationState.setText(_translate("MainWindow", "Activation Status: Unactivated"))
         self.label_19.setText(_translate("MainWindow", "TextLabel"))
         self.DeviceName_3.setText(_translate("MainWindow", "Done!"))
-        self.UDID_3.setText(_translate("MainWindow", "Thank you for using R1nderPest! Your device has been successfully activated! Please complete the initial setup as usual.\n"
-"\n"
-"If you encounter any issues, please run the bypass process again."))
+        self.UDID_3.setText(_translate("MainWindow", "Thank you for using R1nderPest! Your device has been successfully activated! Please complete the initial setup as usual.\n""\n""If you encounter any issues, please run the bypass process again."))
         self.backToHomePage.setText(_translate("MainWindow", "◀️ Back to Home Page"))
 
 
