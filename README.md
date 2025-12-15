@@ -8,8 +8,6 @@
   </p>
 </p>
 
----
-
 ##  Features
 - Free & Open Source
 - Supports iPhone XR through iPhone 16 Pro Max (A12-A18)
