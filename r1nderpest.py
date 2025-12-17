@@ -1797,8 +1797,9 @@ class Ui_MainWindow(object):
                     self.activateButton.setText("Could not get device info!")
                     QtWidgets.QApplication.processEvents()
                     time.sleep(1)
-                    self.log(text="Reconnecting...")
+                    self.log(text="Reconnecting...", type="warning") 
                     time.sleep(1)
+                    continue
 
                 self.log(text="Device Connected!", type="success")
                 self.log(text=f"Detected device with: ", type="info")
@@ -1869,7 +1870,7 @@ class Ui_MainWindow(object):
 
     
         
-    def log(self, text: str, type: str):
+    def log(self, text: str, type: str = "info"):
         if type == "info":
             print(f"[{Fore.CYAN}i{Fore.RESET}]: {text}")
         elif type == "warning":
